@@ -18,7 +18,6 @@ router_changing = Router()
 async def get_result_choosing_action(message: Message, state: FSMContext):
     user_answer = message.text.lower()
     data = await state.get_data()
-
     current_stage = data.get("survey_stage")
     ingredient_list = data.get("ingredient_list")
     if user_answer == "поменять позицию":
@@ -99,5 +98,41 @@ async def change(message: Message, state: FSMContext):
         index = ingredient_list.index(ingredient_for_change)
         ingredient_list[index] = new_ingredient_name
         await state.update_data(ingredient_list=ingredient_list)
-        await message.answer(logic.render_list(ingredient_list))
+        await message.answer(logic.render_list(ingredient_list),
+                             reply_markup=buttons_yes_or_not())
         await state.set_state(States.waiting_for_data_confirmation)
+
+
+@router_changing.message(ChangingData.delete)
+async def delete(message: Message, state:FSMContext):
+    position_for_delete = message.text.lower()
+    data = await state.get_data()
+    ingredient_list = data.get('ingredient_list')
+    if position_for_delete == 'отмена':
+        await message.answer(logic.render_list(ingredient_list),
+                             reply_markup=buttons_yes_or_not())
+        await state.set_state(States.waiting_for_data_confirmation)
+    elif position_for_delete in ingredient_list:
+        ingredient_list.remove(position_for_delete)
+        await state.update_data(ingredient_list=ingredient_list)
+        await message.answer(f'Позиция "{position_for_delete}" удалена из списка отслеживаемых продуктов')
+        await message.answer(logic.render_list(ingredient_list),
+                             reply_markup=buttons_yes_or_not())
+        await state.set_state(States.waiting_for_data_confirmation)
+
+    else:
+        await message.answer(f'продукта "{position_for_delete}" нет в списке\nВыбери что ты хочешь удалить из списка ниже:\n•{"\n•".join(ingredient_list)}',
+                              reply_markup=button_generator(ingredient_list))
+
+@router_changing.message(ChangingData.add)
+async def add(message: Message, state: FSMContext):
+    new_positions = logic.convert_string_to_list(message.text)
+    data = await state.get_data()
+
+    ingredient_list = data.get('ingredient_list')
+
+    ingredient_list.extend(new_positions)
+    await state.update_data(ingredient_list=ingredient_list)
+    await message.answer(logic.render_list(ingredient_list),
+                         reply_markup=buttons_yes_or_not())
+    await state.set_state(States.waiting_for_data_confirmation)

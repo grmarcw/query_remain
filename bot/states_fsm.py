@@ -17,7 +17,7 @@ class DeleteFromDB(States):
 class ChangingData(States):
     waiting_result_choosing_action = State()
 
-    waiting_elem_for_change = ()
+    waiting_elem_for_change = State()
     change = State()
     delete = State()
     add = State()
