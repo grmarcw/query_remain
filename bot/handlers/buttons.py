@@ -43,7 +43,7 @@ def button_generator(some_list):
 
     for i in some_list:
         builder.add(KeyboardButton(text=i))
-    builder.add(KeyboardButton(text="Отмена"))
+    builder.add(KeyboardButton(text="Отменить"))
 
     builder.adjust(3)
     kb = builder.as_markup(resize_keyboard=True)

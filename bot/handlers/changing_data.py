@@ -1,9 +1,7 @@
-from itertools import count
 
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove
-from sqlalchemy.dialects import mssql
 
 import constants
 from bot.handlers.buttons import (
@@ -105,7 +103,7 @@ async def get_answer_about_change(message: Message, state: FSMContext):
     elif current_stage == 2:
         changing_list = composition[cifc]
 
-    if position_for_change == "отмена":
+    if position_for_change == "отменить":
         await state.set_state(States.waiting_for_data_confirmation)
         if current_stage == 1:
             await message.answer(
@@ -149,7 +147,7 @@ async def change(message: Message, state: FSMContext):
     elif current_stage == 2:
         list_for_change = composition[cifc]
         element_for_change = position_for_change
-    if new_ingredient_name == "отмена":
+    if new_ingredient_name == "отменить":
         await state.set_state(States.waiting_for_data_confirmation)
         if current_stage == 1:
             await message.answer(
@@ -186,7 +184,7 @@ async def delete(message: Message, state:FSMContext):
         list_for_delete = ingredient_list
     elif current_stage == 2:
         list_for_delete = composition[cifc]
-    if position_for_delete == 'отмена':
+    if position_for_delete == 'отменить':
         await state.set_state(States.waiting_for_data_confirmation)
         if current_stage == 1:
             await message.answer(logic.render_list(ingredient_list),
@@ -231,34 +229,52 @@ async def add(message: Message, state: FSMContext):
         await state.update_data(composition=composition)
         await message.answer(logic.render_dict(composition),
                              reply_markup=buttons_yes_or_not())
-    else:
-        await message.answer(str(current_stage))
-
     await state.set_state(States.waiting_for_data_confirmation)
 
 @router_changing.message(ChangingData.waiting_ingredient_name)
 async def choose_composition_for_change(message: Message, state: FSMContext):
     ingredient_name = message.text.lower()
     data = await state.get_data()
+    current_stage = data.get("survey_stage")
 
     composition = data.get('composition')
     ingredient_list = data.get('ingredient_list')
+    recipes = data.get('recipes')
+    pfc = data.get('pfc')
 
-    if ingredient_name == 'отмена':
-        await message.answer(logic.render_dict(composition),
-                             reply_markup=buttons_yes_or_not())
-        await state.set_state(States.waiting_for_data_confirmation)
+    if ingredient_name == 'отменить':
+        if current_stage == 2:
+            await message.answer(logic.render_dict(composition),
+                                 reply_markup=buttons_yes_or_not())
+            await state.set_state(States.waiting_for_data_confirmation)
+        elif current_stage == 3:
+            await message.answer(constants.CHECKING_CORRECT_DATA.format(sep=constants.SEPARATOR,
+                                                                        checking_data=logic.show_recipes(recipes)),
+                                 reply_markup=buttons_yes_or_not())
+            await state.set_state(States.waiting_for_data_confirmation)
+
     elif ingredient_name not in list(composition.keys()):
-        await message.answer(
-            f'Нет такой позиции\nПожалуйста введи позицию, в которой хочешь внести изменения:\n{constants.SEPARATOR}\n{logic.render_dict(composition,option=2)}',
-        reply_markup=button_generator(ingredient_list)
-        )
+        if current_stage < 3:
+            await message.answer(
+                f'Нет такой позиции\nПожалуйста введи позицию, в которой хочешь внести изменения:\n{constants.SEPARATOR}\n{logic.render_dict(composition,option=2)}',
+            reply_markup=button_generator(ingredient_list)
+            )
+        elif current_stage == 3:
+            await message.answer(
+                f'Нет такой позиции\nПожалуйста введи позицию, в которой хочешь внести изменения:\n{constants.SEPARATOR}\n{"\n•".join(list(recipes[pfc].keys()))}',
+            reply_markup=button_generator(list(recipes[pfc])))
     else:
         await state.update_data(cifc=ingredient_name)#cifc-current ingredient for change
-        await state.update_data(currect_position_list=composition[ingredient_name])
-        await state.set_state(ChangingData.waiting_result_choosing_action)
-        await message.answer(f'Что вы хотите изменить?\n{constants.SEPARATOR}\nВыберите и напишите одно действие:\n{constants.SEPARATOR}\n•Поменять позицию\n•Удалить позицию\n•Добавить позицию\n•Начать заполнение заново',
-                             reply_markup=buttons_choose_action())
+        await state.update_data(current_position_list=composition[ingredient_name])
+        if current_stage == 2:
+            await state.set_state(ChangingData.waiting_result_choosing_action)
+            await message.answer(f'Что вы хотите изменить?\n{constants.SEPARATOR}\nВыберите и напишите одно действие:\n{constants.SEPARATOR}\n•Поменять позицию\n•Удалить позицию\n•Добавить позицию\n•Начать заполнение заново',
+                                 reply_markup=buttons_choose_action())
+        elif current_stage == 3:
+            await state.set_state(ChangingData.waiting_new_quantity)
+            await message.answer(
+                f'Сколько ингридиента "{ingredient_name}" идет в товар "{pfc}"?\n Пожалуйста, укажите в ГРАММАХ',
+            reply_markup=ReplyKeyboardRemove())
 
 
 @router_changing.message(ChangingData.recomposition)
@@ -273,3 +289,40 @@ async def recomposite(message: Message, state: FSMContext):
     await state.set_state(States.waiting_for_data_confirmation)
     await message.answer(logic.render_dict(composition), reply_markup=buttons_yes_or_not())
 
+@router_changing.message(ChangingData.waiting_position_name_for_change)
+async def get_position_for_change(message: Message, state: FSMContext):
+    position_name_for_change = message.text.lower()
+    data = await state.get_data()
+    recipes = data.get('recipes')
+
+    if position_name_for_change == 'отменить':
+        await message.answer(constants.CHECKING_CORRECT_DATA.format(sep=constants.SEPARATOR,checking_data=logic.show_recipes(recipes)), reply_markup=buttons_yes_or_not())
+        await state.set_state(States.waiting_for_data_confirmation)
+    elif position_name_for_change in list(recipes.keys()):
+        await state.set_state(ChangingData.waiting_ingredient_name)
+        await message.answer(f'В какой позиции вы хотите внести изменения?',
+                             reply_markup=button_generator(list(recipes[position_name_for_change].keys())))
+        await state.update_data(pfc=position_name_for_change)
+    else:
+        await message.answer(
+            f'Нет такого товара\nПожалуйста введи позицию, в которой хочешь внести изменения из списка ниже:\n{constants.SEPARATOR}\n•{"\n•".join(list(recipes.keys()))}',
+            reply_markup=button_generator(list(recipes.keys())))
+
+
+@router_changing.message(ChangingData.waiting_new_quantity)
+async def get_new_quantity(message: Message, state: FSMContext):
+    new_quantity = message.text
+    data = await state.get_data()
+    recipes = data.get('recipes')
+    pfc = data.get('pfc')
+    cifc = data.get('cifc')
+
+
+    if new_quantity.isdigit():
+        recipes[pfc][cifc] = new_quantity
+        await state.update_data(recipes=recipes)
+        await message.answer(constants.CHECKING_CORRECT_DATA.format(sep=constants.SEPARATOR,checking_data=logic.show_recipes(recipes)), reply_markup=buttons_yes_or_not())
+        await state.set_state(States.waiting_for_data_confirmation)
+    else:
+        await message.answer(
+            f'Некорректный ввод\nСколько ингридиента "{cifc}" идет в товар "{pfc}"?\n Пожалуйста, укажите в ГРАММАХ')

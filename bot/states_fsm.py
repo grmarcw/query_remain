@@ -6,7 +6,8 @@ class States(StatesGroup):
     waiting_ingredient_list = State()
     waiting_position_list = State()
     waiting_for_data_confirmation = State()
-    waiting_position_list = State()
+    waiting_quantity = State()
+    waiting_save_confirmation = State()
 
 
 class DeleteFromDB(States):
@@ -26,3 +27,6 @@ class ChangingData(States):
     waiting_ingredient_name = State()
     waiting_choose_action = State()
     recomposition = State()
+
+    waiting_position_name_for_change = State()
+    waiting_new_quantity = State()
