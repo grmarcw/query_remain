@@ -5,7 +5,7 @@ class States(StatesGroup):
     # состояния для работы с заполнением данных о рецептах
     waiting_ingredient_list = State()
     waiting_for_data_confirmation = State()
-    waiting_position_list =State()
+    waiting_position_list = State()
 
 
 class DeleteFromDB(States):
@@ -13,5 +13,11 @@ class DeleteFromDB(States):
     waiting_for_change_decision_from_db = State()
     waiting_ans_about_delete_data_from_db = State()
 
+
 class ChangingData(States):
     waiting_result_choosing_action = State()
+
+    waiting_elem_for_change = ()
+    change = State()
+    delete = State()
+    add = State()

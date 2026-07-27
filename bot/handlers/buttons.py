@@ -1,3 +1,4 @@
+from aiogram.types import KeyboardButton
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 
@@ -22,15 +23,28 @@ def buttons_yes_or_not():
     kb = builder.as_markup(resize_keyboard=True)
     return kb
 
+
 def buttons_choose_action():
     bilder = ReplyKeyboardBuilder()
-    bilder.button(text='Поменять позицию')
-    bilder.button(text='Удалить позицию')
-    bilder.button(text='Добавить позицию')
-    bilder.button(text='Начать заполнение заново')
-    bilder.button(text='Отменить')
+    bilder.button(text="Поменять позицию")
+    bilder.button(text="Удалить позицию")
+    bilder.button(text="Добавить позицию")
+    bilder.button(text="Начать заполнение заново")
+    bilder.button(text="Отменить")
 
     bilder.adjust(2)
     kb = bilder.as_markup(resize_keyboard=True)
 
+    return kb
+
+
+def button_generator(some_list):
+    builder = ReplyKeyboardBuilder()
+
+    for i in some_list:
+        builder.add(KeyboardButton(text=i))
+    builder.add(KeyboardButton(text="Отмена"))
+
+    builder.adjust(3)
+    kb = builder.as_markup(resize_keyboard=True)
     return kb
