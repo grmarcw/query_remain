@@ -27,3 +27,26 @@ def render_list(list_for_output, sep=constants.SEPARATOR):
             list_="\n•".join(list_for_output)
         ),
     )
+
+def render_dict(ingredients_positions, sep=constants.SEPARATOR, option=1):
+    ingredients_list = []
+    positions = []
+    some = []
+    some_two = []
+
+    for k, v in ingredients_positions.items():
+        ingredients_list.append(k)
+        positions.append(v)
+    for i, ingred in enumerate(ingredients_list):
+        some.append(
+            constants.POSITION_LIST.format(
+                ingredient=ingred.upper(), positions="\n•".join(positions[i])
+            )
+        )
+        some_two.append(f'Позиция:\n"{ingred.upper()}"\nТовары, в которые она входит:\n{"\n".join(positions[i])}\n{sep}\n')
+
+    if option == 1:
+        return constants.CHECKING_CORRECT_DATA.format(sep=sep, checking_data="\n".join(some))
+    else:
+        return "\n".join(some_two)
+
