@@ -21,3 +21,16 @@ def buttons_yes_or_not():
     builder.adjust(2)
     kb = builder.as_markup(resize_keyboard=True)
     return kb
+
+def buttons_choose_action():
+    bilder = ReplyKeyboardBuilder()
+    bilder.button(text='Поменять позицию')
+    bilder.button(text='Удалить позицию')
+    bilder.button(text='Добавить позицию')
+    bilder.button(text='Начать заполнение заново')
+    bilder.button(text='Отменить')
+
+    bilder.adjust(2)
+    kb = bilder.as_markup(resize_keyboard=True)
+
+    return kb

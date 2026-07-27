@@ -4,8 +4,8 @@ from aiogram.types import Message, ReplyKeyboardRemove
 from aiogram.filters import Command
 
 import constants
-from bot.handlers.buttons import buttons_show_delete, buttons_yes_or_not
-from bot.states_fsm import States, DeleteFromDB
+from bot.handlers.buttons import buttons_show_delete, buttons_yes_or_not, buttons_choose_action
+from bot.states_fsm import States, DeleteFromDB, ChangingData
 from core import logic
 from database import queries
 
@@ -17,6 +17,12 @@ async def start(message: Message, state: FSMContext):
     user = message.from_user
 
     if await queries.get_user_data(user.id) is None:
+        await state.update_data(ingredient_list=[])#список отслеживаемых ингредиентов
+        await state.update_data(survey_stage=1)#текущий этап заполнения данных
+        await state.update_data(composition={})#ключ-ингридиент, значение-список товаров, куда идет ингр.
+        await state.update_data(count=0)
+        await state.update_data(recipes={})#кл-товар, зн:кл-ингридиент, зн-количество игрид.
+
         await message.answer(
             constants.ASK_LIST_INGREDIENTS, reply_markup=ReplyKeyboardRemove()
         )
@@ -60,3 +66,34 @@ async def delete_data(message: Message, state: FSMContext):
     await queries.delete_user(user.id)
     await message.answer("Данные удалены", reply_markup=ReplyKeyboardRemove())
     await state.clear()
+
+@main_router.message(States.waiting_ingredient_list)
+async def get_list_ingredients(message: Message, state: FSMContext):
+    user_answer = message.text
+    result_user_input = logic.convert_string_to_list(user_answer)
+    await state.update_data(ingredient_list=result_user_input)
+
+
+    await message.answer(text=logic.render_list(result_user_input),
+                         reply_markup=buttons_yes_or_not())
+    await state.set_state(States.waiting_for_data_confirmation)
+
+
+@main_router.message(States.waiting_for_data_confirmation)
+async def check_correctness_data(message: Message, state: FSMContext):
+    user_answer = message.text.lower()
+    data = await state.get_data()
+
+    current_survey_stage = data.get('survey_stage')
+
+    if user_answer == 'да' and current_survey_stage == 1:
+        await message.answer(constants.ASK_LIST_POSITIONS.format(ingredient=data['ingredient_list'][0]),
+                             reply_markup=ReplyKeyboardRemove())
+        await state.set_state(States.waiting_position_list)
+    elif user_answer == 'нет':
+        await message.answer(f'Что вы хотите изменить?\n{constants.SEPARATOR}\nВыберите и напишите одно действие:\n{constants.SEPARATOR}\n•Поменять позицию\n•Удалить позицию\n•Добавить позицию\n•Начать заполнение заново',
+                             reply_markup=buttons_choose_action())
+        await state.set_state(ChangingData.waiting_result_choosing_action)
+
+    else:
+        await message.answer('Я не понимаю\nПожалуйста, введите "да" или "нет"')
