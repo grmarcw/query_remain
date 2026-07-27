@@ -15,3 +15,5 @@ SEPARATOR = "=" * 20
 ASK_LIST_POSITIONS = (
     'В какие товары идет "{ingredient}"?\nНапишите все названия через запятую'
 )
+
+POSITION_LIST = "{ingredient} идет в:\n•{positions}\n"

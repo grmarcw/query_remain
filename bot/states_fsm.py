@@ -4,6 +4,7 @@ from aiogram.fsm.state import StatesGroup, State
 class States(StatesGroup):
     # состояния для работы с заполнением данных о рецептах
     waiting_ingredient_list = State()
+    waiting_position_list = State()
     waiting_for_data_confirmation = State()
     waiting_position_list = State()
 
@@ -21,3 +22,7 @@ class ChangingData(States):
     change = State()
     delete = State()
     add = State()
+
+    waiting_ingredient_name = State()
+    waiting_choose_action = State()
+    recomposition = State()
