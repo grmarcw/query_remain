@@ -1,4 +1,6 @@
-from aiogram.fsm.state import StatesGroup
+from aiogram.fsm.state import StatesGroup, State
+
 
 class States(StatesGroup):
-    pass
+    waiting_ingredient_list = State()
+    waiting_for_change_decision = State()
