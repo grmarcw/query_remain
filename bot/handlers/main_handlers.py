@@ -28,6 +28,7 @@ async def start(message: Message, state: FSMContext):
             composition={}
         )  # ключ-ингридиент, значение-список товаров, куда идет ингр.        await state.update_data(recipes={})#кл-товар, зн:кл-ингридиент, зн-количество игрид.
         await state.update_data(recipes={})
+        await state.update_data(position_is_ingredient=[])
         await message.answer(
             constants.ASK_LIST_INGREDIENTS, reply_markup=ReplyKeyboardRemove()
         )
@@ -132,14 +133,15 @@ async def check_correctness_data(message: Message, state: FSMContext):
     elif user_answer == "нет":
         if current_survey_stage == 1:
             await message.answer(
-                f"Что вы хотите изменить?\n{constants.SEPARATOR}\nВыберите и напишите одно действие:\n{constants.SEPARATOR}\n•Поменять позицию\n•Удалить позицию\n•Добавить позицию\n•Начать заполнение заново",
+                f"Что вы хотите изменить?\n{constants.SEPARATOR}\nВыберите и напишите одно действие:{constants.CHOOSING_ACTION}",
                 reply_markup=buttons_choose_action(),
             )
             await state.set_state(ChangingData.waiting_result_choosing_action)
         elif current_survey_stage == 2:
+            composition = data.get("composition")
             await message.answer(
                 f"В какой позиции вы хотите внести изменения?",
-                reply_markup=button_generator(data.get("ingredient_list")),
+                reply_markup=button_generator(list(composition.keys())),
             )
             await state.set_state(ChangingData.waiting_ingredient_name)
         elif current_survey_stage == 3:
@@ -161,22 +163,34 @@ async def get_position_list(message: Message, state: FSMContext):
     composition = data.get("composition")
     count = data.get("count", 0)
     ingredient_list = data.get("ingredient_list")
+    position_is_ingredient = data.get("position_is_ingredient")
 
-    composition.setdefault(ingredient_list[count], user_answer)
+    if ingredient_list[count] == user_answer[0]:
+        position_is_ingredient.append(user_answer[0])
+        await state.update_data(position_is_ingredient=position_is_ingredient)
+    else:
+        composition.setdefault(ingredient_list[count], user_answer)
     count += 1
     await state.update_data(composition=composition)
     await state.update_data(count_ingred=0)
     await state.update_data(count_pos=0)
 
-    if count < len(ingredient_list):
+    if (
+        count < len(ingredient_list)
+        and ingredient_list[count] not in position_is_ingredient
+    ):
         await message.answer(
             constants.ASK_LIST_POSITIONS.format(ingredient=ingredient_list[count])
         )
         await state.update_data(count=count)
     else:
         await state.update_data(survey_stage=2)
+        for elem in position_is_ingredient:
+            ingredient_list.remove(elem)
+        await state.update_data(ingredient_list=ingredient_list)
         await message.answer(
-            logic.render_dict(composition), reply_markup=buttons_yes_or_not()
+            logic.render_dict(composition, list_for_add=position_is_ingredient),
+            reply_markup=buttons_yes_or_not(),
         )
         await state.set_state(States.waiting_for_data_confirmation)
 
@@ -238,8 +252,16 @@ async def saving_data(message: Message, state: FSMContext):
     data = await state.get_data()
     recipes = data.get("recipes")
     if answer == "да":
+        position_is_ingredient = data.get("position_is_ingredient")
+        for pos in position_is_ingredient:
+            recipes.setdefault(pos, {})
+            recipes[pos][pos] = 1
+        await state.update_data(recipes=recipes)
         await queries.add_new_user(user_id, recipes)
-        await message.answer("Данные сохранены!")
+        await message.answer(
+            f"Сохранены следующие данные:\n{logic.show_recipes(recipes)}"
+        )
+        await state.clear()
     else:
         await message.answer(
             constants.CHECKING_CORRECT_DATA.format(

@@ -12,8 +12,9 @@ CHECKING_CORRECT_DATA = """Пожалуйста, проверьте коррек
 
 SEPARATOR = "=" * 20
 
-ASK_LIST_POSITIONS = (
-    'В какие товары идет "{ingredient}"?\nНапишите все названия через запятую'
-)
+ASK_LIST_POSITIONS = 'В какие товары идет "{ingredient}"?\nНапишите все названия через запятую\n----\nЕсли позиция является товаром, напишите "{ingredient}"'
 
 POSITION_LIST = "{ingredient} идет в:\n•{positions}\n"
+
+choose = "\n{sep}\n•Поменять позицию\n•Удалить позицию\n•Добавить позицию\n•Начать заполнение заново"
+CHOOSING_ACTION = choose.format(sep=SEPARATOR)
