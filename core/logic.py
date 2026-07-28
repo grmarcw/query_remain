@@ -7,7 +7,7 @@ def show_recipes(recipes):
     for position, data in recipes.items():
         result.append(f"•{position}:")
         for ingredient, quantity in data.items():
-            result.append(f"   -{ingredient}: {quantity}грамм")
+            result.append(f"   -{ingredient}: {quantity}")
 
     return "\n".join(result)
 
@@ -29,7 +29,9 @@ def render_list(list_for_output, sep=constants.SEPARATOR):
     )
 
 
-def render_dict(ingredients_positions, sep=constants.SEPARATOR, option=1):
+def render_dict(
+    ingredients_positions, list_for_add=None, sep=constants.SEPARATOR, option=1
+):
     ingredients_list = []
     positions = []
     some = []
@@ -48,6 +50,8 @@ def render_dict(ingredients_positions, sep=constants.SEPARATOR, option=1):
         some_two.append(
             f'Позиция:\n"{ingred.upper()}"\nТовары, в которые она входит:\n{"\n".join(positions[i])}\n{sep}\n'
         )
+    if list_for_add:
+        some.append(f'\n----\nЯвляются товарами\n----\n{"\n".join(list_for_add)}')
     if option == 1:
         return constants.CHECKING_CORRECT_DATA.format(
             sep=sep, checking_data="\n".join(some)
