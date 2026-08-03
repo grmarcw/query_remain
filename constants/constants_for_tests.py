@@ -1,0 +1,21 @@
+LIST_TEXT = "список"
+RENDER_DICT = "словарь"
+RECIPES = "вложенный словарь"
+
+DONT_EXIST = "позиции не существует"
+SUCCESS = "успех"
+QUANTITY = "спрашиваем количество"
+CHECKING_CORRECTNESS = 'проверка корректности'
+ASK_PRODUCT = 'спрашиваем название товаров'
+ASK_INGREDIENT = 'спрашиваем названия позиций'
+CHOOSE_POSITION = 'выбираем позицию'
+DELETE_DATA = 'выбираем данные для удаления'
+ELEMENT_DELETED = 'элемент удален'
+SHOW_DATA = 'показываем данные'
+
+BUTTONS_YES_NOT = "кнопки да/нет"
+BUTTON_GENERATOR = "генератор кнопок"
+BUTTON_CHOOSE = "кнопки выбора"
+DELETE_KB = "удалить клавиатуру"
+BUTTONS_SHOW_DELETE = 'удалить или показать'
+
