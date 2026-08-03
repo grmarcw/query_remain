@@ -1,6 +1,6 @@
 from aiogram.types import ReplyKeyboardRemove
 
-from bot.buttons import buttons_yes_or_not
+from bot.buttons import buttons_yes_or_not, button_generator
 from bot.states_fsm import FillingStates, States
 from constants import constants
 from core import renderers
@@ -89,12 +89,17 @@ def get_quantity_ingredients(quantity, instance):
 async def saving(user_answer, instance):
 
     if user_answer == "да":
-        for product in instance.product_is_ingredient:
-            instance.recipes.setdefault(product, {})
-            instance.recipes[product][product] = 1
-        await queries.add_new_user(instance.id_user, instance.recipes)
+        if instance.data_filling_stage == 1:
+            for product in instance.product_is_ingredient:
+                instance.recipes.setdefault(product, {})
+                instance.recipes[product][product] = 1
+            await queries.add_new_user(instance.id_user, instance.recipes)
+            data = renderers.show_recipes(instance.recipes)
+        elif instance.data_filling_stage == 2:
+            await queries.add_deliveries_info(instance.id_user, instance.compositions)
+            data = renderers.render_dict(instance.compositions, option=2)
         return (
-            f'{constants.SHOW_SAVING_DATA.format(data=renderers.show_recipes(instance.recipes))}\n{constants.INPUT_START}',
+            f'{constants.SHOW_SAVING_DATA.format(data=data)}\n\n{constants.INPUT_START}',
             ReplyKeyboardRemove(),
             States.clear
         )
@@ -103,6 +108,34 @@ async def saving(user_answer, instance):
             constants.CHECKING_CORRECT_DATA.format(
                 sep=constants.SEPARATOR, checking_data=renderers.show_recipes(instance.recipes)
             ),
+            buttons_yes_or_not(),
+            FillingStates.waiting_for_data_confirmation
+        )
+
+
+async def get_delivery_composition(deliverier, instance):
+    if deliverier not in instance.ingredients:
+        return (
+            f'{constants.INCORRECT_INPUT}\n{constants.ASK_COMPOSITION_DELIVERY.format(position=instance.full_ingredients_list[instance.count])}',
+            button_generator(instance.ingredients, without_cancel=True),
+            None
+        )
+
+    instance.compositions.setdefault(deliverier, [])
+    instance.compositions[deliverier].append(instance.full_ingredients_list[instance.count])
+
+    instance.count += 1
+
+    if instance.count < len(instance.full_ingredients_list):
+        return (
+            constants.ASK_COMPOSITION_DELIVERY.format(position=instance.full_ingredients_list[instance.count]),
+            button_generator(instance.ingredients, without_cancel=True),
+            FillingStates.waiting_for_delivery_data_composition
+        )
+    else:
+        instance.survey_stage = 2
+        return (
+            constants.CHECKING_CORRECT_DATA.format(sep=constants.SEPARATOR, checking_data=renderers.render_dict(instance.compositions, option=2, stage=2)),
             buttons_yes_or_not(),
             FillingStates.waiting_for_data_confirmation
         )

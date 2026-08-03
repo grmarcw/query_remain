@@ -1,5 +1,3 @@
-import pytest
-
 from bot.states_fsm import FillingStates
 from core.add_data import add_data_in_instance
 

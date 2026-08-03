@@ -22,7 +22,7 @@ def get_element_for_change(element, inst):
         next_state = FillingStates.waiting_for_data_confirmation
         if inst.survey_stage == 1:
             return(
-                renderers.render_list(changing_list),
+                renderers.render_list(changing_list, inst.data_filling_stage),
                 buttons_yes_or_not(),
                 next_state
             )
@@ -33,8 +33,12 @@ def get_element_for_change(element, inst):
                 next_state
             )
     elif element not in changing_list:
+        if inst.data_filling_stage == 1:
+            dont_exist = answer.POSITION_DONT_EXIST
+        else:
+            dont_exist = answer.DELIVERIER_DONT_EXIST
         return (
-            answer.POSITION_DONT_EXIST.format(data_for_changing="\n•".join(changing_list)),
+            dont_exist.format(data_for_changing="\n•".join(changing_list)),
             button_generator(changing_list),
             None
         )
@@ -58,7 +62,7 @@ def change_data(user_answer, instance):
         next_stage = FillingStates.waiting_for_data_confirmation
         if instance.survey_stage == 1:
             return (
-                renderers.render_list(instance.ingredients),
+                renderers.render_list(instance.ingredients, instance.data_filling_stage),
                 buttons_yes_or_not(),
                 next_stage
             )
@@ -74,7 +78,7 @@ def change_data(user_answer, instance):
         next_state = FillingStates.waiting_for_data_confirmation
         if instance.survey_stage == 1:
             return (
-                renderers.render_list(list_for_change),
+                renderers.render_list(list_for_change, instance.data_filling_stage),
                 buttons_yes_or_not(),
                 next_state
             )

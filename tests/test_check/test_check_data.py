@@ -18,7 +18,8 @@ async def test_check_data_in_db_not_exist(mock_not_exist_db_data,
 @pytest.mark.asyncio
 async def test_check_data_in_db_exist(instance_stage_one,
                                       mock_exist_db_data,
-                                      mock_buttons_show_delete):
+                                      mock_buttons_show_delete,
+                                      mock_exist_delivery_data):
     result_exist = await check_data.check_data_in_db(instance_stage_one)
     assert result_exist == (constants.ASK_SHOW_DELETE,
                             t.BUTTONS_SHOW_DELETE,
@@ -30,6 +31,7 @@ def test_give_response_text_for_check_correctness_data(instance_stage_one,
                                                        instance_stage_three,
                                                        mock_ask_position,
                                                        mock_delete_kb,
+                                                       mock_button_choose,
                                                        mock_choose_position,
                                                        mock_ask_quantity,
                                                        mock_button_generator,
@@ -69,7 +71,7 @@ def test_give_response_text_for_check_correctness_data(instance_stage_one,
                                    t.BUTTON_GENERATOR,
                                    ChangingData.waiting_ingredient_name)
     assert result_yes_stage_three == (constants.CONFIRM_SAVING,
-                                      t.DELETE_KB,
+                                      t.BUTTONS_YES_NOT,
                                       States.waiting_save_confirmation)
     assert result_no_stage_three == (constants.ASK_PRODUCT_FOR_CHANGE,
                                      t.BUTTON_GENERATOR,

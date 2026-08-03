@@ -19,6 +19,9 @@ class FillingStates(States):
 
     waiting_for_data_confirmation = State()
 
+    waiting_for_delivery_data_composition = State()
+    waiting_for_filling_data_confirmation = State()
+
 
 class ChangingData(States):
     waiting_result_choosing_action = State()

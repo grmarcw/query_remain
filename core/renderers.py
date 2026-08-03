@@ -21,8 +21,12 @@ def convert_string_to_list(string_for_convert):
     return result
 
 
-def render_list(list_for_output):
-    str_for_output = "Вы хотите отслеживать следующие позиции:\n\n•{list_}\n"
+def render_list(list_for_output, stage=1 ):
+
+    if stage == 1:
+        str_for_output = "Вы хотите отслеживать следующие позиции:\n\n•{list_}\n"
+    else:
+        str_for_output = "Вы хотите отслеживать следующих поставщиков:\n\n•{list_}\n"
     return constants.CHECKING_CORRECT_DATA.format(
         sep=constants.SEPARATOR,
         checking_data=str_for_output.format(list_="\n•".join(list_for_output)),
@@ -30,7 +34,7 @@ def render_list(list_for_output):
 
 
 def render_dict(
-    ingredients_positions, list_for_add=None, sep=constants.SEPARATOR, option=1
+    ingredients_positions, list_for_add=None, option=1, stage=1
 ):
     ingredients_list = []
     positions = []
@@ -47,14 +51,24 @@ def render_dict(
                 ingredient=ingred.upper(), positions="\n•".join(positions[i])
             )
         )
-        some_two.append(
-            f'Позиция:\n"{ingred.upper()}"\nТовары, в которые она входит:\n{"\n".join(positions[i])}\n{sep}\n'
-        )
+        if stage == 1:
+            some_two.append(
+                f'Позиция:\n"{ingred.upper()}"\nТовары, в которые она входит:\n{"\n".join(positions[i])}\n{constants.SEPARATOR}\n'
+            )
+        else:
+            some_two.append(
+                f'•"{ingred.upper()}"\n  -{"\n  -".join(positions[i])}\n{constants.SEPARATOR}\n'
+            )
+            some_three.append(
+                f'•{ingred}:\n    -{"\n    -".join(positions[i])}\n'
+            )
     if list_for_add:
         some.append(f'\n----\nЯвляются товарами\n----\n{"\n".join(list_for_add)}')
     if option == 1:
         return constants.CHECKING_CORRECT_DATA.format(
-            sep=sep, checking_data="\n".join(some)
+            sep=constants.SEPARATOR, checking_data="\n".join(some)
         )
-    else:
+    elif option == 2:
         return "\n".join(some_two)
+    else:
+        return "\n".join(some_three)

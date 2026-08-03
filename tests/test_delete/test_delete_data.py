@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import result
 
-from bot.states_fsm import DeleteStates, FillingStates
+from bot.states_fsm import DeleteStates, FillingStates, States
 from constants import constants_for_tests as t, constants
 
 from core import delete_data
@@ -14,7 +14,8 @@ async def test_handle_show_or_delete_request(instance_stage_one,
                                              mock_render_recipes_str,
                                              mock_delete_kb,
                                              mock_button_show_delete,
-                                             mock_exist_db_data):
+                                             mock_exist_db_data,
+                                             mock_render_dict):
     result_for_delete = await delete_data.handle_show_or_delete_request(
         'удалить', instance_stage_one
     )
@@ -27,9 +28,15 @@ async def test_handle_show_or_delete_request(instance_stage_one,
     assert result_for_delete == (t.DELETE_DATA,
                                  t.BUTTON_GENERATOR,
                                  DeleteStates.waiting_for_deletion_data_type)
-    assert result_for_show == (f'{t.RECIPES}\n{constants.INPUT_START}',
+    assert result_for_show == (f'''Данные о рецептах:\n
+{t.RECIPES}
+{constants.SEPARATOR}
+Данные о поставках:\n
+{t.RENDER_DICT}
+{constants.SEPARATOR}
+{constants.INPUT_START}''',
                                t.DELETE_KB,
-                               None)
+                               States.clear)
     assert result_else == (constants.SHOW_OR_DELETE,
                            t.BUTTONS_SHOW_DELETE,
                            None)

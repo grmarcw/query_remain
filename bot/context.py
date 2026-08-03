@@ -6,7 +6,7 @@ class RecipesData:
     recipes: Dict[str, dict] = None
     compositions: Dict[str, list] = None
     survey_stage: int = None
-    product_is_ingredient: Dict[str] = None
+    product_is_ingredient: List[str] = None
     ingredients_without_products: List[str] = None
     count:int = None
     idx_ing: int = None
@@ -15,3 +15,6 @@ class RecipesData:
     cil: List[str] = None
     cifc: str = None
     pfc: str = None
+    data_filling_stage = 1
+    full_ingredients_list = []
+    deliveries = {}

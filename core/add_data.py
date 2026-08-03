@@ -9,7 +9,7 @@ def add_data_in_instance(user_answer, instance):
     if instance.survey_stage == 1:
         instance.ingredients.extend(user_answer)
         return (
-            renderers.render_list(instance.ingredients),
+            renderers.render_list(instance.ingredients, instance.data_filling_stage),
             buttons_yes_or_not(),
             next_state
         )

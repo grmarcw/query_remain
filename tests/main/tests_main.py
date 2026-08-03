@@ -72,9 +72,9 @@ async def test_saving(instance_six,
     result_yes = await main.saving('да', instance_six)
     result_else = await main.saving('some', instance_six)
 
-    assert result_yes == (t.SHOW_DATA,
+    assert result_yes == (f'{t.SHOW_DATA}\n\n{constants.INPUT_START}',
                           t.DELETE_KB,
-                          None)
+                          States.clear)
     assert result_else == (t.CHECKING_CORRECTNESS,
                            t.BUTTONS_YES_NOT,
                            FillingStates.waiting_for_data_confirmation)

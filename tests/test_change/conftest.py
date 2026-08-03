@@ -84,6 +84,8 @@ def instance_stage_three():
     instance.compositions = {'молоко': ['капучино']}
     instance.recipes = {'капучино': {'молоко': 6767}}
     instance.pfc = 'капучино'
+    instance.cil = ['молоко']
+    instance.cpl = ['капучино']
     return instance
 
 
@@ -97,6 +99,12 @@ def mock_not_exist(mocker):
 def mock_product_not_exist(mocker):
     mock = mocker.patch('core.change_data.answer.PRODUCT_DONT_EXIST')
     mock.format.return_value = constants_for_tests.DONT_EXIST
+    return mock
+
+@pytest.fixture
+def mock_ask_pos_for_change(mocker):
+    mock = mocker.patch('core.change_data.answer.ASK_POSITION_FOR_CHANGE',
+                        new = constants_for_tests.ASK_PRODUCT)
     return mock
 
 

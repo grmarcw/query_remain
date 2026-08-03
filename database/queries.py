@@ -49,5 +49,17 @@ async def add_deliveries_info(id: int, data: dict):
     """
     async with session_maker() as sess:
         new_data = User(id=id, deliveries=data)
-        sess.add(new_data)
+        await sess.merge(new_data)
         await sess.commit()
+
+
+async def delete_delivery(id: int):
+    """
+    Удаляет данные пользователя о поставках из бд
+    :param id: тг-айди пользователя
+    """
+    async with session_maker() as sess:
+        user = await sess.get(User, id)
+        if user:
+            user.deliveries = None
+            await sess.commit()

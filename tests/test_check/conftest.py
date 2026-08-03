@@ -10,13 +10,21 @@ from core.check_data import init_user_data
 @pytest.fixture
 def mock_exist_db_data(mocker):
     mock = mocker.patch('core.check_data.queries.get_user_data')
-    mock.return_value = {'id': 1234, 'recipes': {'капучино': {'молоко': 250}}}
+    mock.return_value = {'id': 1234, 'recipes': {'капучино': {'молоко': 250}}, 'deliveries': {'metro': ['молоко']}}
     return mock
 
 @pytest.fixture
 def mock_not_exist_db_data(mocker):
     mock = mocker.patch('core.check_data.queries.get_user_data')
     mock.return_value = None
+
+@pytest.fixture
+def mock_exist_delivery_data(mocker):
+    user_mock = MagicMock()
+    user_mock.recipes = {'капучино': {'молоко': 250}}
+    user_mock.deliveries = {'metro': ['молоко']}
+    mock = mocker.patch('core.check_data.queries.get_user_data')
+    mock.return_value = user_mock
 
 @pytest.fixture
 def instance_stage_one():

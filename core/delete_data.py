@@ -15,14 +15,20 @@ async def handle_show_or_delete_request(user_answer, instance):
     '''
     if user_answer in ("удалить", "удалить данные"):
         return (
-            constants.INPUT_DATA_FOR_DELETE.format(sep=constants.SEPARATOR,data='  •Все данные'),
-            button_generator(['Все данные']),
-            DeleteStates.waiting_for_deletion_data_type,
+            constants.INPUT_DATA_FOR_DELETE.format(sep=constants.SEPARATOR,data='  •Все данные\n  •Данные о поставках'),
+            button_generator(['Все данные', 'Данные о поставках']),
+            DeleteStates.waiting_for_deletion_data_type
         )
     elif user_answer in ("отобразить", "отобразить данные"):
         user_data_from_db = await queries.get_user_data(instance.id_user)
         return (
-        f'{renderers.show_recipes(user_data_from_db.recipes)}\n{constants.INPUT_START}',
+        f'''Данные о рецептах:\n
+{renderers.show_recipes(user_data_from_db.recipes)}
+{constants.SEPARATOR}
+Данные о поставках:\n
+{renderers.render_dict(user_data_from_db.deliveries, option=3, stage=2)}
+{constants.SEPARATOR}
+{constants.INPUT_START}''',
             ReplyKeyboardRemove(),
             States.clear
         )
@@ -41,12 +47,21 @@ async def delete_data_from_db(user_answer, instanse):
             ReplyKeyboardRemove(),
             States.clear
         )
-    elif user_answer == 'все данные':
-        await queries.delete_user(instanse.id_user)
+    elif user_answer in ('все данные', 'данные о поставках'):
+        if user_answer == 'все данные':
+            await queries.delete_user(instanse.id_user)
+        elif user_answer == 'данные о поставках':
+            await queries.delete_delivery(instanse.id_user)
         return (
             f'{constants.DATA_IS_DELETED}\n{constants.INPUT_START}',
             ReplyKeyboardRemove(),
             States.clear
+        )
+    else:
+        return (
+            constants.INPUT_DATA_FOR_DELETE.format(sep=constants.SEPARATOR,data='  •Все данные\n  •Данные о поставках'),
+            button_generator(['Все данные', 'Данные о поставках']),
+            None
         )
 
 def delete_element(element, instance):
@@ -64,7 +79,7 @@ def delete_element(element, instance):
         next_state = FillingStates.waiting_for_data_confirmation
         if s_s == 1:
             return (
-                renderers.render_list(ingredient_list),
+                renderers.render_list(ingredient_list, instance.data_filling_stage),
                 buttons_yes_or_not(),
                 next_state
             )
@@ -78,8 +93,12 @@ def delete_element(element, instance):
         list_for_delete.remove(element)
         next_state = FillingStates.waiting_for_data_confirmation
         if s_s == 1:
+            if instance.data_filling_stage == 1:
+                deleted = constants.POSITION_IS_DELETED
+            else:
+                deleted = constants.DELIVERIER_IS_DELETED
             return (
-            f'{constants.POSITION_IS_DELETED.format(position=element)}\n{renderers.render_list(ingredient_list)}',
+            f'{deleted.format(position=element)}\n{renderers.render_list(ingredient_list, instance.data_filling_stage)}',
                 buttons_yes_or_not(),
                 next_state
             )
@@ -90,8 +109,12 @@ def delete_element(element, instance):
                 next_state
             )
     else:
+        if instance.data_filling_stage == 1:
+            dont_exist = constants.PRODUCT_DONT_EXIST
+        else:
+            dont_exist = constants.DELIVERIER_DONT_EXIST
         return (
-            constants.PRODUCT_DONT_EXIST.format(list_change='\n'.join(list_for_delete)),
+            dont_exist.format(data_for_changing='\n'.join(list_for_delete)),
             button_generator(list_for_delete),
             None
             )

@@ -13,6 +13,7 @@ def instance_stage_one():
     instance.cifc = 'молоко'
     return instance
 
+
 @pytest.fixture
 def mock_button_generator(mocker):
     mock = mocker.patch('core.delete_data.button_generator')
@@ -78,7 +79,8 @@ def mock_render_dict(mocker):
 def mock_exist_db_data(mocker):
     mock = mocker.patch('core.delete_data.queries.get_user_data')
     instance = RecipesData()
-    instance.recipes == {'капучино': {'молоко': 250}}
+    instance.recipes = {'капучино': {'молоко': 250}}
+    instance.deliveries = {'производство': ['салат']}
     mock.return_value = instance
     return mock
 

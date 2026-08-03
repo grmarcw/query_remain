@@ -17,7 +17,7 @@ async def get_list_ingredients(message: Message, state: FSMContext, instance):
     user_answer = renderers.convert_string_to_list(message.text)
     instance.ingredients = user_answer
     await state.update_data(instance=instance)
-    await message.answer(text=renderers.render_list(user_answer), reply_markup=buttons_yes_or_not())
+    await message.answer(text=renderers.render_list(user_answer, instance.data_filling_stage), reply_markup=buttons_yes_or_not())
     await state.set_state(FillingStates.waiting_for_data_confirmation)
 
 
@@ -49,4 +49,19 @@ async def get_quantity(message: Message, state: FSMContext, instance):
 async def saving_data(message: Message, state: FSMContext, instance):
     await handler_handlers.proccess_user_input(
         message, state, instance, main.saving
+    )
+
+@main_router.message(FillingStates.waiting_for_delivery_data_composition)
+@with_data
+async def get_position_list(message: Message, state: FSMContext, instance):
+    await handler_handlers.proccess_user_input(
+        message, state, instance, main.get_delivery_composition
+    )
+
+
+@main_router.message(FillingStates.waiting_for_filling_data_confirmation)
+@with_data
+async def get_position_list(message: Message, state: FSMContext, instance):
+    await handler_handlers.proccess_user_input(
+        message, state, instance, check_data.get_confirm
     )
