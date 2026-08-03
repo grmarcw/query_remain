@@ -1,4 +1,4 @@
-import constants
+from constants import constants
 
 
 def show_recipes(recipes):
@@ -21,10 +21,10 @@ def convert_string_to_list(string_for_convert):
     return result
 
 
-def render_list(list_for_output, sep=constants.SEPARATOR):
+def render_list(list_for_output):
     str_for_output = "Вы хотите отслеживать следующие позиции:\n\n•{list_}\n"
     return constants.CHECKING_CORRECT_DATA.format(
-        sep=sep,
+        sep=constants.SEPARATOR,
         checking_data=str_for_output.format(list_="\n•".join(list_for_output)),
     )
 
