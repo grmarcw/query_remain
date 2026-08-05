@@ -21,8 +21,13 @@ def get_element_for_change(element, inst):
     if element == "отменить":
         next_state = FillingStates.waiting_for_data_confirmation
         if inst.survey_stage == 1:
+            if inst.data_filling_stage == 1:
+                output = renderers.render_list(changing_list, inst.data_filling_stage)
+            elif inst.data_filling_stage == 3:
+                output = renderers.render_dict_balance(inst.compositions)
+                inst.survey_stage == 3
             return(
-                renderers.render_list(changing_list, inst.data_filling_stage),
+                output,
                 buttons_yes_or_not(),
                 next_state
             )
@@ -33,7 +38,7 @@ def get_element_for_change(element, inst):
                 next_state
             )
     elif element not in changing_list:
-        if inst.data_filling_stage == 1:
+        if inst.data_filling_stage == 1 or inst.data_filling_stage == 3:
             dont_exist = answer.POSITION_DONT_EXIST
         else:
             dont_exist = answer.DELIVERIER_DONT_EXIST
@@ -43,8 +48,12 @@ def get_element_for_change(element, inst):
             None
         )
     elif element in changing_list:
+        if inst.data_filling_stage == 3:
+            output = answer.ASK_QUANTITY_BALANCE.format(position=inst.cifc)
+        else:
+            output = answer.INPUT_NEW_NAME
         return (
-            answer.INPUT_NEW_NAME,
+            output,
             ReplyKeyboardRemove(),
             ChangingData.change
         )
@@ -61,8 +70,12 @@ def change_data(user_answer, instance):
     if user_answer == "отменить":
         next_stage = FillingStates.waiting_for_data_confirmation
         if instance.survey_stage == 1:
+            if instance.data_filling_stage == 3:
+                output = renderers.render_dict_balance(instance.compositions)
+            else:
+                output = renderers.render_list(instance.ingredients, instance.data_filling_stage)
             return (
-                renderers.render_list(instance.ingredients, instance.data_filling_stage),
+                output,
                 buttons_yes_or_not(),
                 next_stage
             )
@@ -73,24 +86,41 @@ def change_data(user_answer, instance):
                 next_stage
             )
     else:
-        index = list_for_change.index(element_for_change)
-        list_for_change[index] = user_answer
-        next_state = FillingStates.waiting_for_data_confirmation
-        if instance.survey_stage == 1:
-            return (
-                renderers.render_list(list_for_change, instance.data_filling_stage),
-                buttons_yes_or_not(),
-                next_state
-            )
-        elif instance.survey_stage == 2:
-            if user_answer == instance.cifc:
-                del instance.compositions[user_answer]
-                instance.product_is_ingredient.append(user_answer)
-                instance.ingredients_without_products.remove(user_answer)
-            return (
-                renderers.render_dict(instance.compositions, instance.product_is_ingredient),
-                buttons_yes_or_not(),
-                next_state)
+        if instance.data_filling_stage == 3:
+            if str(user_answer).isdigit():
+                instance.compositions[instance.cifc] = user_answer
+                instance.survey_stage = 3
+                return (
+                    renderers.render_dict_balance(instance.compositions),
+                    buttons_yes_or_not(),
+                    FillingStates.waiting_for_data_confirmation
+                )
+            else:
+                return (
+                    f'''{answer.INCORRECT_INPUT}
+{answer.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count])}''',
+                    ReplyKeyboardRemove(),
+                    None
+                )
+        else:
+            index = list_for_change.index(element_for_change)
+            list_for_change[index] = user_answer
+            next_state = FillingStates.waiting_for_data_confirmation
+            if instance.survey_stage == 1:
+                return (
+                    renderers.render_list(list_for_change, instance.data_filling_stage),
+                    buttons_yes_or_not(),
+                    next_state
+                )
+            elif instance.survey_stage == 2:
+                if user_answer == instance.cifc:
+                    del instance.compositions[user_answer]
+                    instance.product_is_ingredient.append(user_answer)
+                    instance.ingredients_without_products.remove(user_answer)
+                return (
+                    renderers.render_dict(instance.compositions, instance.product_is_ingredient),
+                    buttons_yes_or_not(),
+                    next_state)
 
 def get_composition_for_change(user_answer, instance):
 
@@ -172,7 +202,7 @@ def get_position_name_for_change(user_answer, instance):
         )
     else:
         return (
-            answer.PRODUCT_DONT_EXIST.format(list_change="\n•".join(list(instance.recipes.keys()))),
+            answer.PRODUCT_DONT_EXIST.format(data_for_changing="\n•".join(list(instance.recipes.keys()))),
             button_generator(list(instance.recipes.keys())),
             None
         )

@@ -37,3 +37,6 @@ class ChangingData(States):
 
     waiting_position_name_for_change = State()
     waiting_new_quantity = State()
+
+class CurrentActualBalance(States):
+    waiting_for_quantity = State()

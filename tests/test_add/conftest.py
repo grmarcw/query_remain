@@ -1,7 +1,7 @@
 import pytest
 from pytest_mock import mocker
 
-from bot.context import RecipesData
+from bot.context import InitialData as RecipesData
 from core.check_data import init_user_data
 
 

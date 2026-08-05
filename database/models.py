@@ -6,9 +6,17 @@ class Base(DeclarativeBase):
     pass
 
 
-class User(Base):
-    __tablename__ = "query_remain"
+class InitialData(Base):
+    __tablename__ = "recipes_deliveries"
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True)
     recipes: Mapped[dict] = mapped_column(JSON)
     deliveries: Mapped[dict] = mapped_column(JSON, nullable=True)
+
+
+class SecondaryData(Base):
+    __tablename__ = 'daily_usage'
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True)
+    initial_balance: Mapped[dict] = mapped_column(JSON)
+    data: Mapped[dict] = mapped_column(JSON, nullable=True)

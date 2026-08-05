@@ -3,7 +3,7 @@ from functools import wraps
 import pytest
 
 import core
-from bot.context import RecipesData
+from bot.context import InitialData as RecipesData
 from core.check_data import init_user_data
 from constants import constants_for_tests
 

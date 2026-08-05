@@ -5,6 +5,7 @@ from bot.states_fsm import DeleteStates, FillingStates, States
 from constants import constants
 from core import renderers
 from database import queries
+from database.models import SecondaryData
 
 
 async def handle_show_or_delete_request(user_answer, instance):
@@ -14,21 +15,35 @@ async def handle_show_or_delete_request(user_answer, instance):
     :param instance: экземпляр пользователя
     '''
     if user_answer in ("удалить", "удалить данные"):
+        output = '  •Все данные\n  •Данные о поставках\n  •Данные о начальном остатке продукции'
         return (
-            constants.INPUT_DATA_FOR_DELETE.format(sep=constants.SEPARATOR,data='  •Все данные\n  •Данные о поставках'),
-            button_generator(['Все данные', 'Данные о поставках']),
+            constants.INPUT_DATA_FOR_DELETE.format(sep=constants.SEPARATOR,data=output),
+            button_generator(['Все данные', 'Данные о поставках', 'Данные об остатке продукции']),
             DeleteStates.waiting_for_deletion_data_type
         )
     elif user_answer in ("отобразить", "отобразить данные"):
+        output = []
         user_data_from_db = await queries.get_user_data(instance.id_user)
+        data_balance = await queries.get_user_data(instance.id_user, SecondaryData)
+        if user_data_from_db is None:
+            output.append(f'Данные еще не заполнены\n{constants.INPUT_START}')
+        else:
+            output.append('Данные о рецептах:\n')
+            output.append(renderers.show_recipes(user_data_from_db.recipes))
+            output.append(constants.SEPARATOR)
+
+            if user_data_from_db.deliveries is not None:
+                output.append('Данные о поставках:\n')
+                output.append(renderers.render_dict(user_data_from_db.deliveries, option=3, stage=2))
+                output.append(constants.SEPARATOR)
+
+            if data_balance.initial_balance is not None:
+                output.append('Данные о начальном остатке продукции:\n')
+                output.append(renderers.render_dict_balance(data_balance.initial_balance, option=2))
+                output.append(constants.INPUT_START)
+
         return (
-        f'''Данные о рецептах:\n
-{renderers.show_recipes(user_data_from_db.recipes)}
-{constants.SEPARATOR}
-Данные о поставках:\n
-{renderers.render_dict(user_data_from_db.deliveries, option=3, stage=2)}
-{constants.SEPARATOR}
-{constants.INPUT_START}''',
+            '\n'.join(output),
             ReplyKeyboardRemove(),
             States.clear
         )
@@ -47,11 +62,14 @@ async def delete_data_from_db(user_answer, instanse):
             ReplyKeyboardRemove(),
             States.clear
         )
-    elif user_answer in ('все данные', 'данные о поставках'):
+    elif user_answer in ('все данные', 'данные о поставках', 'данные об остатке продукции'):
         if user_answer == 'все данные':
             await queries.delete_user(instanse.id_user)
+            await queries.delete_user(instanse.id_user, SecondaryData)
         elif user_answer == 'данные о поставках':
             await queries.delete_delivery(instanse.id_user)
+        elif user_answer == 'данные об остатке продукции':
+            await queries.delete_user(instanse.id_user, SecondaryData)
         return (
             f'{constants.DATA_IS_DELETED}\n{constants.INPUT_START}',
             ReplyKeyboardRemove(),

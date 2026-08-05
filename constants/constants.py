@@ -53,7 +53,6 @@ ASK_PRODUCT_FOR_DELETE = ask_delete.format(item='ой товар')
 ASK_DELIVERIER_FOR_DELETE = ask_delete.format(item='ого поставщика')
 
 
-ASK_SHOW_DELETE = 'В базе найдены данные\nХотите отобразить данные или удалить?'
 SHOW_OR_DELETE = "Хотите отобразить данные или удалить?"
 
 INPUT_DATA_FOR_DELETE = '''Выберите какие данные хотите удалить
@@ -72,8 +71,12 @@ INPUT_YES_NO = 'Я не понимаю\nПожалуйста, введите "д
 INCORRECT_INPUT = '''Некорректный ввод'''
 
 
-
 CONFIRM_SAVING = "Подтвердите сохранение данных"
 SHOW_SAVING_DATA = 'Сохранены следующие данные:\n{data}'
 
 ASK_FILLING_DATA_AGAIN = 'Хотите заполнить данные заново?'
+
+
+ASK_QUANTITY_BALANCE = 'Какой текущий остаток позиции "{position}"?\nПожалуйста, укажите в кг/л'
+INPUT_NEW_QUANTITY = 'Введите корректное значение текущего остатка для позиции {position}'
+

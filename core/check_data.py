@@ -1,11 +1,12 @@
 from aiogram.types import ReplyKeyboardRemove
+from sqlalchemy.util import await_only
 
 from bot.buttons import buttons_choose_action, button_generator, buttons_yes_or_not, buttons_show_delete
-from bot.context import RecipesData
-from bot.states_fsm import States, ChangingData, DeleteStates, FillingStates
+from bot.states_fsm import States, ChangingData, DeleteStates, FillingStates, CurrentActualBalance
 from constants import constants
 from core import transformers, renderers
 from database import queries
+from database.models import SecondaryData
 
 
 def init_user_data(instance):
@@ -45,11 +46,23 @@ async def check_data_in_db(instance):
                 FillingStates.waiting_for_data_list
             )
         else:
-            return (
-                constants.ASK_SHOW_DELETE,
-                buttons_show_delete(),
-                DeleteStates.waiting_for_delete_or_display
-            )
+            if await queries.get_user_data(instance.id_user, SecondaryData):
+                return (
+                    f'Все первичные данные заполнены',
+                    button_generator(['/help'],without_cancel=True),
+                    States.clear
+                )
+            else:
+                instance.count = 0
+                for recipe in data.recipes.values():
+                    for ingredient in recipe.keys():
+                        if ingredient not in instance.ingredients:
+                            instance.ingredients.append(ingredient)
+                return (
+                    constants.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count]),
+                    ReplyKeyboardRemove(),
+                    CurrentActualBalance.waiting_for_quantity
+                )
 
 
 def give_response_text_for_check_correctness_data(user_answer: str, instance):
@@ -137,14 +150,22 @@ def give_response_text_for_check_correctness_data(user_answer: str, instance):
             States.waiting_save_confirmation
         )
     elif user_answer == 'нет' and instance.survey_stage == 3:
-        recipes = instance.recipes
-        positions_list = list(recipes.keys())
-        instance.cpl = positions_list
+        if instance.data_filling_stage < 3:
+            recipes = instance.recipes
+            positions_list = list(recipes.keys())
+            instance.cpl = positions_list
+            question = constants.ASK_PRODUCT_FOR_CHANGE
+            next_state = ChangingData.waiting_position_name_for_change
+        else:
+            instance.survey_stage = 1
+            question = constants.ASK_POSITION_FOR_CHANGE
+            positions_list = instance.ingredients
+            next_state = ChangingData.waiting_element_for_change
 
         return (
-            constants.ASK_PRODUCT_FOR_CHANGE,
+            question,
             button_generator(positions_list),
-            ChangingData.waiting_position_name_for_change
+            next_state
         )
 
 

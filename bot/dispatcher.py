@@ -20,11 +20,12 @@ bot = Bot(token=bot_token)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+dp.include_router(prompt_router)
 dp.include_router(main_router)
 dp.include_router(router_changing)
 dp.include_router(delete_router)
 dp.include_router(add_router)
-dp.include_router(prompt_router)
+
 
 
 async def main():

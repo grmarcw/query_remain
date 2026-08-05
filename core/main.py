@@ -16,11 +16,19 @@ def get_composition(product_list, instance):
         instance.product_is_ingredient.append(product_list[0])
         instance.ingredients_without_products.remove(instance.ingredients_without_products[instance.count])
         if len(instance.ingredients_without_products) > 0:
-            return (
-                constants.ASK_LIST_POSITIONS.format(ingredient=instance.ingredients_without_products[instance.count]),
-                ReplyKeyboardRemove(),
-                None
-            )
+            try:
+                return (
+                    constants.ASK_LIST_POSITIONS.format(ingredient=instance.ingredients_without_products[instance.count]),
+                    ReplyKeyboardRemove(),
+                    None
+                )
+            except IndexError:
+                instance.survey_stage = 2
+                return (
+                    renderers.render_dict(instance.compositions, list_for_add=instance.product_is_ingredient),
+                    buttons_yes_or_not(),
+                    FillingStates.waiting_for_data_confirmation
+                )
         else:
             return (
                 constants.CONFIRM_SAVING,
@@ -87,7 +95,6 @@ def get_quantity_ingredients(quantity, instance):
             )
 
 async def saving(user_answer, instance):
-
     if user_answer == "да":
         if instance.data_filling_stage == 1:
             for product in instance.product_is_ingredient:
@@ -98,6 +105,9 @@ async def saving(user_answer, instance):
         elif instance.data_filling_stage == 2:
             await queries.add_deliveries_info(instance.id_user, instance.compositions)
             data = renderers.render_dict(instance.compositions, option=2)
+        elif instance.data_filling_stage == 3:
+            await queries.add_initial_balance(instance.id_user, instance.compositions)
+            data = renderers.render_dict_balance(instance.compositions)
         return (
             f'{constants.SHOW_SAVING_DATA.format(data=data)}\n\n{constants.INPUT_START}',
             ReplyKeyboardRemove(),
@@ -136,6 +146,33 @@ async def get_delivery_composition(deliverier, instance):
         instance.survey_stage = 2
         return (
             constants.CHECKING_CORRECT_DATA.format(sep=constants.SEPARATOR, checking_data=renderers.render_dict(instance.compositions, option=2, stage=2)),
+            buttons_yes_or_not(),
+            FillingStates.waiting_for_data_confirmation
+        )
+
+
+def get_quantity_balance(quantity, instance):
+    if not str(quantity).isdigit():
+        return (
+            f'''{constants.INCORRECT_INPUT}
+{constants.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count])}''',
+            ReplyKeyboardRemove(),
+            None
+        )
+
+    instance.compositions.setdefault(instance.ingredients[instance.count], quantity)
+    instance.count += 1
+
+    if instance.count < len(instance.ingredients):
+        return (
+            constants.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count]),
+            ReplyKeyboardRemove(),
+            None)
+    else:
+        instance.survey_stage = 3
+        instance.data_filling_stage = 3
+        return (
+            renderers.render_dict_balance(instance.compositions),
             buttons_yes_or_not(),
             FillingStates.waiting_for_data_confirmation
         )

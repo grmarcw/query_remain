@@ -1,6 +1,6 @@
 import pytest
 
-from bot.context import RecipesData
+from bot.context import InitialData as RecipesData
 from constants import constants_for_tests
 from core.check_data import init_user_data
 

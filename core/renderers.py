@@ -72,3 +72,18 @@ def render_dict(
         return "\n".join(some_two)
     else:
         return "\n".join(some_three)
+
+
+def render_dict_balance(dict, option=1):
+    list_for_render = []
+    for position, actual_balance in dict.items():
+        list_for_render.append(
+            f'{position}: {actual_balance}'
+        )
+    if option == 1:
+        return constants.CHECKING_CORRECT_DATA.format(
+            sep=constants.SEPARATOR, checking_data="\n".join(list_for_render)
+        )
+    elif option == 2:
+        return "\n".join(list_for_render)
+

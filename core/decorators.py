@@ -1,8 +1,7 @@
 from functools import wraps
 
 from aiogram.fsm.context import FSMContext
-
-from bot.context import RecipesData
+from aiogram.types import Message
 
 
 def with_data(handler):
