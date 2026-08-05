@@ -24,11 +24,15 @@ def buttons_yes_or_not():
     return kb
 
 
-def buttons_choose_action():
+def buttons_choose_action(filling_stage=1):
     bilder = ReplyKeyboardBuilder()
-    bilder.button(text="Поменять позицию")
-    bilder.button(text="Удалить позицию")
-    bilder.button(text="Добавить позицию")
+    if filling_stage == 1:
+        item = 'позицию'
+    else:
+        item = 'поставщика'
+    bilder.button(text=f"Поменять {item}")
+    bilder.button(text=f"Удалить {item}")
+    bilder.button(text=f"Добавить {item}")
     bilder.button(text="Начать заполнение заново")
     bilder.button(text="Отменить")
 
@@ -38,12 +42,13 @@ def buttons_choose_action():
     return kb
 
 
-def button_generator(some_list):
+def button_generator(some_list, without_cancel=False):
     builder = ReplyKeyboardBuilder()
 
     for i in some_list:
         builder.add(KeyboardButton(text=i))
-    builder.add(KeyboardButton(text="Отменить"))
+    if not without_cancel:
+        builder.add(KeyboardButton(text="Отменить"))
 
     builder.adjust(3)
     kb = builder.as_markup(resize_keyboard=True)

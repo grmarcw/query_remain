@@ -2,24 +2,31 @@ from aiogram.fsm.state import StatesGroup, State
 
 
 class States(StatesGroup):
-    # состояния для работы с заполнением данных о рецептах
-    waiting_ingredient_list = State()
-    waiting_position_list = State()
-    waiting_for_data_confirmation = State()
-    waiting_quantity = State()
+    # состояния для сохранения данных
     waiting_save_confirmation = State()
+    clear = State()
 
+class DeleteStates(States):
+    # состояния для удаления данных
+    waiting_for_delete_or_display = State()
+    waiting_for_deletion_data_type = State()
 
-class DeleteFromDB(States):
-    # состояния для удаления данных из бд
-    waiting_for_change_decision_from_db = State()
-    waiting_ans_about_delete_data_from_db = State()
+class FillingStates(States):
+# состояния для работы с заполнением данных о рецептах
+    waiting_for_data_list = State()
+    waiting_for_data_for_composition = State()
+    waiting_quantity = State()
+
+    waiting_for_data_confirmation = State()
+
+    waiting_for_delivery_data_composition = State()
+    waiting_for_filling_data_confirmation = State()
 
 
 class ChangingData(States):
     waiting_result_choosing_action = State()
 
-    waiting_elem_for_change = State()
+    waiting_element_for_change = State()
     change = State()
     delete = State()
     add = State()
@@ -30,3 +37,6 @@ class ChangingData(States):
 
     waiting_position_name_for_change = State()
     waiting_new_quantity = State()
+
+class CurrentActualBalance(States):
+    waiting_for_quantity = State()
