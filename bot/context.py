@@ -19,3 +19,7 @@ class InitialData:
     deliveries: Dict[str, list] = {} # данные о поставщках
 
     full_ingredients_list: List[str] = [] #список ингридиентов
+
+class DailyData:
+    id_user: int = None
+    date: str = None

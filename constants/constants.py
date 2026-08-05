@@ -80,3 +80,7 @@ ASK_FILLING_DATA_AGAIN = 'Хотите заполнить данные зано�
 ASK_QUANTITY_BALANCE = 'Какой текущий остаток позиции "{position}"?\nПожалуйста, укажите в кг/л'
 INPUT_NEW_QUANTITY = 'Введите корректное значение текущего остатка для позиции {position}'
 
+
+DATE_CLARIFICATION = 'Вы хотите заполнить данные за {date}?'
+INPUT_CORRECT_DATE = 'Пожалуйста, напишите дату для заполнения данных в формате DD.MM.YYYY'
+INPUT_CORRECT_FORMAT = 'Введите дату в формате DD.MM.YYYY'

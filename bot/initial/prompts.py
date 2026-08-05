@@ -7,10 +7,8 @@ import constants
 from bot.buttons import buttons_show_delete
 from bot.states_fsm import ChangingData, DeleteStates
 from constants.constants import INPUT_START
-from core import check_data
-from core.decorators import with_data
-from core.check_data import choose_action
-from bot.context import InitialData
+from core import check_data, handler_handlers, clarification_date
+from bot.context import InitialData, DailyData
 
 prompt_router = Router()
 
@@ -41,8 +39,9 @@ async def cancel(message: Message, state: FSMContext):
 async def help(message: Message, state: FSMContext):
     start = '/start - для начала заполнения данных\n'
     cancel = '/cancel - для отмены заполнения данных\n'
-    delete_show = '/delete_or_show - для удаления данных или отображения'
-    await message.answer(start+cancel+delete_show)
+    delete_show = '/delete_or_show - для удаления данных или отображения\n'
+    input_daily_data = '/input_daily_data - для ввода информации о расхода/дохода продукции\n'
+    await message.answer(start+cancel+delete_show+input_daily_data)
 
 @prompt_router.message(Command('delete_or_show'))
 async def delete_or_show(message: Message, state: FSMContext):
@@ -52,16 +51,13 @@ async def delete_or_show(message: Message, state: FSMContext):
     await message.answer(constants.constants.SHOW_OR_DELETE, reply_markup=buttons_show_delete())
     await state.set_state(DeleteStates.waiting_for_delete_or_display)
 
-
-@prompt_router.message(ChangingData.waiting_result_choosing_action)
-@with_data
-async def get_result_choosing_action(message: Message, state: FSMContext, instance):
-    user_answer = message.text.lower()
-
-    result = choose_action(user_answer, instance)
-    text, buttons_config, next_state = result
+@prompt_router.message(Command('input_daily_data'))
+async def delete_or_show(message: Message, state: FSMContext):
+    instance = DailyData()
+    instance.id_user = message.from_user.id
     await state.update_data(instance=instance)
+    result = clarification_date.clarification(instance)
+    text, button_config, next_state = result
+    await message.answer(text, reply_markup=button_config)
+    await state.set_state(next_state)
 
-    await message.answer(text, reply_markup=buttons_config)
-    if next_state:
-        await state.set_state(next_state)

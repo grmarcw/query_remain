@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 
 from bot.initial.changing_data import router_changing
+from bot.initial.clarification_date import clarification_router
 from bot.initial.delete_data import delete_router
 from bot.initial.main_handlers import main_router
 
@@ -24,6 +25,7 @@ dp.include_router(prompt_router)
 dp.include_router(main_router)
 dp.include_router(router_changing)
 dp.include_router(delete_router)
+dp.include_router(clarification_router)
 dp.include_router(add_router)
 
 

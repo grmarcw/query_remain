@@ -40,3 +40,8 @@ class ChangingData(States):
 
 class CurrentActualBalance(States):
     waiting_for_quantity = State()
+
+class CheckDate(States):
+    waiting_for_confirm_date = State()
+
+    waiting_for_correct_date = State()
