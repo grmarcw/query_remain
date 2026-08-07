@@ -2,7 +2,7 @@ from aiogram.types import ReplyKeyboardRemove
 from sqlalchemy.util import await_only
 
 from bot.buttons import buttons_choose_action, button_generator, buttons_yes_or_not, buttons_show_delete
-from bot.states_fsm import States, ChangingData, DeleteStates, FillingStates, CurrentActualBalance
+from bot.states_fsm import States, ChangingData, DeleteStates, FillingStates, CurrentActualBalance, Main
 from constants import constants
 from core import transformers, renderers
 from database import queries
@@ -77,7 +77,6 @@ def give_response_text_for_check_correctness_data(user_answer: str, instance):
     следующее состояние для FSMContext
     )
     '''
-
     if user_answer == "да" and instance.survey_stage == 1:
         if instance.data_filling_stage == 2:
             instance.count = 0
@@ -87,19 +86,48 @@ def give_response_text_for_check_correctness_data(user_answer: str, instance):
                 FillingStates.waiting_for_delivery_data_composition
             )
         else:
+            if instance.filling_stage == 3:
+                next_question = constants.SHIPMENT_CONFIRM
+                button = button_generator(instance.positions, [constants.NO_MORE_SHIPMENT], without_cancel=True)
+                next_state = Main.waiting_for_deliveries_names
+                instance.filling_stage = 5
+            elif instance.filling_stage == 6:
+                instance.filling_stage = 7
+                next_question = constants.SHIPMENT_CONFIRM_OUT
+                button = button_generator(instance.positions, [constants.NO_MORE_SHIPMENT], without_cancel=True)
+                next_state = Main.waiting_for_deliveries_names
+            elif instance.filling_stage == 7:
+                instance.filling_stage = 8
+                next_question = None
+                button = None
+                next_state = None
+            else:
+                next_question = constants.ASK_LIST_POSITIONS.format(ingredient=instance.ingredients[0])
+                button = ReplyKeyboardRemove()
+                next_state = FillingStates.waiting_for_data_for_composition
             return (
-                constants.ASK_LIST_POSITIONS.format(ingredient=instance.ingredients[0]),
-                ReplyKeyboardRemove(),
-                FillingStates.waiting_for_data_for_composition
+                next_question,
+                button,
+                next_state
             )
     elif user_answer == "нет" and instance.survey_stage == 1:
         if instance.data_filling_stage == 1:
             choose_list = constants.CHOOSING_ACTION
+        elif instance.data_filling_stage == 4:
+            if instance.filling_stage == 3:
+                choose_list = constants.CHOOSING_ACTION_DELIVERY_ADD_DELETE
+            elif instance.filling_stage in (6,7):
+                choose_list = constants.CHOOSING_ACTION_SHIPMENT_ADD_DELETE
         else:
             choose_list = constants.CHOOSING_ACTION_DELIVERY
+
+        if instance.filling_stage in (6,7):
+            button = buttons_choose_action(5)
+        else:
+            button = buttons_choose_action(instance.data_filling_stage)
         return (
             constants.CHOOSE_POSITION_FOR_CHANGE.format(sep=constants.SEPARATOR, choose_list=choose_list),
-            buttons_choose_action(instance.data_filling_stage),
+            button,
             ChangingData.waiting_result_choosing_action
             )
 
@@ -144,10 +172,19 @@ def give_response_text_for_check_correctness_data(user_answer: str, instance):
 
 
     elif user_answer == "да" and instance.survey_stage == 3:
+        if instance.filling_stage == 1:
+            output = constants.CONFIRM_SAVING
+            buttons = buttons_yes_or_not()
+            next_state = States.waiting_save_confirmation
+        elif instance.filling_stage == 2:
+            deliveries_list = list(instance.delivery.keys())
+            output = constants.INPUT_DELIVERIES_NAMES
+            buttons = button_generator(deliveries_list, [constants.NO_MORE],without_cancel=True)
+            next_state = Main.waiting_for_deliveries_names
         return (
-            constants.CONFIRM_SAVING,
-            buttons_yes_or_not(),
-            States.waiting_save_confirmation
+            output,
+            buttons,
+            next_state
         )
     elif user_answer == 'нет' and instance.survey_stage == 3:
         if instance.data_filling_stage < 3:
@@ -159,8 +196,11 @@ def give_response_text_for_check_correctness_data(user_answer: str, instance):
         else:
             instance.survey_stage = 1
             question = constants.ASK_POSITION_FOR_CHANGE
-            positions_list = instance.ingredients
             next_state = ChangingData.waiting_element_for_change
+            if instance.filling_stage == 1:
+                positions_list = instance.ingredients
+            elif instance.filling_stage == 2:
+                positions_list = instance.products
 
         return (
             question,
@@ -177,51 +217,127 @@ def give_response_text_for_check_correctness_data(user_answer: str, instance):
         )
 
 def choose_action(user_answer, instance):
-
     if instance.data_filling_stage == 1:
         item = 'позицию'
     else:
-        item = 'поставщика'
+        if instance.filling_stage in (6,7):
+            item = 'перемещение'
+        else:
+            item = 'поставщика'
 
     s_s = instance.survey_stage
     actions = [f"поменять {item}", f"удалить {item}", f"добавить {item}", "начать заполнение заново", "отменить"]
+
 
     if instance.data_filling_stage == 1:
         change = constants.ASK_POSITION_FOR_CHANGE
         delete = constants.ASK_POSITION_FOR_DELETE
         add = constants.ASK_LIST_INGREDIENTS
+        choosing_action = constants.CHOOSING_ACTION
+        buttons = buttons_choose_action()
+    elif instance.data_filling_stage == 4:
+        if instance.filling_stage not in (6,7):
+            delete = constants.ASK_DELIVERIER_FOR_DELETE
+            add = constants.INPUT_DELIVERIES_NAMES
+            choosing_action = constants.CHOOSING_ACTION_DELIVERY_ADD_DELETE
+            buttons = buttons_choose_action(4)
+        else:
+            delete = constants.ASK_SHIPMENT_FOR_DELETE
+            choosing_action = constants.CHOOSING_ACTION_SHIPMENT_ADD_DELETE
+            buttons = buttons_choose_action(5)
+            if instance.filling_stage == 6:
+                add = constants.SHIPMENT_CONFIRM
+            elif instance.filling_stage == 7:
+                add = constants.SHIPMENT_CONFIRM_OUT
     else:
         change = constants.ASK_DELIVERIER_FOR_CHANGE
         delete =constants.ASK_DELIVERIER_FOR_DELETE
         add = constants.ASK_DELIVERIES_LIST
 
+
     if user_answer == actions[0] and s_s == 1:
-        return (
-            change,
-            button_generator(instance.ingredients),
-            ChangingData.waiting_element_for_change
-        )
+        if instance.data_filling_stage != 4:
+            return (
+                change,
+                button_generator(instance.ingredients),
+                ChangingData.waiting_element_for_change
+            )
+        else:
+            return (
+                f'{constants.INCORRECT_INPUT}\n{choosing_action}',
+                buttons_choose_action(4),
+                None
+            )
     elif user_answer == actions[1] and s_s == 1:
+        if instance.data_filling_stage != 4:
+            button = button_generator(instance.ingredients)
+        else:
+            if instance.filling_stage == 6:
+                button = button_generator(instance.shipment_in_date)
+            elif instance.filling_stage == 7:
+                button = button_generator(instance.shipment_out_in_date)
+            else:
+                button = button_generator(instance.deliveries_in_date)
         return (
             delete,
-            button_generator(instance.ingredients),
+            button,
             ChangingData.delete
         )
     elif user_answer == actions[2] and s_s == 1:
-        return (
+        if instance.data_filling_stage != 4:
+            return (
+                add,
+                ReplyKeyboardRemove(),
+                ChangingData.add
+            )
+        else:
+            if instance.filling_stage == 6:
+                instance.filling_stage = 5
+                button = button_generator(instance.positions, [constants.NO_MORE_SHIPMENT], without_cancel=True)
+            elif instance.filling_stage == 7:
+                button = button_generator(instance.positions, [constants.NO_MORE_SHIPMENT], without_cancel=True)
+            else:
+                button = button_generator(list(instance.delivery.keys()), [constants.NO_MORE], without_cancel=True)
+            return (
             add,
-            ReplyKeyboardRemove(),
-            ChangingData.add
-        )
+            button,
+            Main.waiting_for_deliveries_names
+         )
     elif user_answer == actions[3] and s_s == 1:
+        if instance.data_filling_stage != 4:
+            next_state = FillingStates.waiting_for_data_list
+            button = ReplyKeyboardRemove()
+        else:
+            if instance.filling_stage == 6:
+                instance.filling_stage = 5
+                instance.shipment_in_date = []
+                next_state = Main.waiting_for_deliveries_names
+                button = button_generator(instance.positions, [constants.NO_MORE], without_cancel=True)
+            elif instance.filling_stage == 7:
+                instance.shipment_out_in_date = []
+                next_state = Main.waiting_for_deliveries_names
+                button = button_generator(instance.positions, [constants.NO_MORE], without_cancel=True)
+            else:
+                instance.deliveries_in_date = []
+                next_state = Main.waiting_for_deliveries_names
+                button = button_generator(list(instance.delivery.keys()), [constants.NO_MORE], without_cancel=True)
         return (
             add,
-            ReplyKeyboardRemove(),
-            FillingStates.waiting_for_data_list
+            button,
+            next_state
         )
     elif user_answer == actions[4] and s_s == 1:
+        if instance.data_filling_stage != 4:
+            output = renderers.render_list(instance.ingredients, instance.data_filling_stage)
+        else:
+            if instance.filling_stage == 6:
+                output = renderers.render_list(instance.shipment_in_date, 4)
+            elif instance.filling_stage == 7:
+                output = renderers.render_list(instance.shipment_out_in_date, 4)
+            else:
+                output = renderers.render_list(instance.deliveries_in_date, stage=3)
         return (
-            renderers.render_list(instance.ingredients, instance.data_filling_stage),
+            output,
             buttons_yes_or_not(),
             FillingStates.waiting_for_data_confirmation
         )
@@ -260,8 +376,8 @@ def choose_action(user_answer, instance):
         )
     else:
         return (
-            f'{constants.INCORRECT_INPUT}\n{constants.CHOOSING_ACTION}',
-            buttons_choose_action(),
+            f'{constants.INCORRECT_INPUT}\n{choosing_action}',
+            buttons,
             None
         )
 

@@ -8,8 +8,12 @@ from core import renderers
 
 def get_element_for_change(element, inst):
     if inst.survey_stage == 1:
-        changing_list = inst.ingredients
-        inst.cifc = element
+        if inst.filling_stage == 1:
+            changing_list = inst.ingredients
+            inst.cifc = element
+        elif inst.filling_stage == 2:
+            changing_list = inst.products
+            inst.cpfc = element
     elif inst.survey_stage == 2:
         changing_list = inst.compositions[inst.cifc]
         inst.pfc = element
@@ -25,7 +29,7 @@ def get_element_for_change(element, inst):
                 output = renderers.render_list(changing_list, inst.data_filling_stage)
             elif inst.data_filling_stage == 3:
                 output = renderers.render_dict_balance(inst.compositions)
-                inst.survey_stage == 3
+                inst.survey_stage = 3
             return(
                 output,
                 buttons_yes_or_not(),
@@ -49,7 +53,10 @@ def get_element_for_change(element, inst):
         )
     elif element in changing_list:
         if inst.data_filling_stage == 3:
-            output = answer.ASK_QUANTITY_BALANCE.format(position=inst.cifc)
+            if inst.filling_stage == 1:
+                output = answer.ASK_QUANTITY_BALANCE.format(position=inst.cifc)
+            elif inst.filling_stage == 2:
+                output = answer.INPUT_SOLD_PRODUCT_QUANTITY.format(product=inst.cpfc)
         else:
             output = answer.INPUT_NEW_NAME
         return (
@@ -61,8 +68,12 @@ def get_element_for_change(element, inst):
 def change_data(user_answer, instance):
 
     if instance.survey_stage == 1:
-        list_for_change = instance.ingredients
-        element_for_change = instance.cifc
+        if instance.filling_stage == 1:
+            list_for_change = instance.ingredients
+            element_for_change = instance.cifc
+        elif instance.filling_stage == 2:
+            list_for_change = instance.products
+            element_for_change = instance.cpfc
     elif instance.survey_stage == 2:
         list_for_change = instance.compositions[instance.cifc]
         element_for_change = instance.pfc
@@ -86,9 +97,15 @@ def change_data(user_answer, instance):
                 next_stage
             )
     else:
+        if instance.filling_stage == 1:
+            current_position_for_change = instance.cifc
+            output_for_incorrect = answer.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count])
+        elif instance.filling_stage == 2:
+            current_position_for_change = instance.cpfc
+            output_for_incorrect = answer.INPUT_SOLD_PRODUCT_QUANTITY.format(product=instance.compositions[instance.cpfc])
         if instance.data_filling_stage == 3:
             if str(user_answer).isdigit():
-                instance.compositions[instance.cifc] = user_answer
+                instance.compositions[current_position_for_change] = user_answer
                 instance.survey_stage = 3
                 return (
                     renderers.render_dict_balance(instance.compositions),
@@ -97,8 +114,7 @@ def change_data(user_answer, instance):
                 )
             else:
                 return (
-                    f'''{answer.INCORRECT_INPUT}
-{answer.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count])}''',
+                    f'{answer.INCORRECT_INPUT}\n{output_for_incorrect}',
                     ReplyKeyboardRemove(),
                     None
                 )

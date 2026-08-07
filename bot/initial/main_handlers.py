@@ -4,7 +4,7 @@ from aiogram.types import Message
 from bot.buttons import (
     buttons_yes_or_not
 )
-from bot.states_fsm import States, FillingStates, CurrentActualBalance
+from bot.states_fsm import States, FillingStates, CurrentActualBalance, Main
 from core import renderers, main, check_data, handler_handlers
 from core.decorators import with_data
 
@@ -71,4 +71,18 @@ async def get_position_list(message: Message, state: FSMContext, instance):
 async def get_position_list(message: Message, state: FSMContext, instance):
     await handler_handlers.proccess_user_input(
         message, state, instance, main.get_quantity_balance
+    )
+
+@main_router.message(Main.waiting_for_quantity_sold)
+@with_data
+async def get_sold_product_quantity(message: Message, state: FSMContext, instance):
+    await handler_handlers.proccess_user_input(
+        message, state, instance, main.get_quantity_balance
+    )
+
+@main_router.message(Main.waiting_for_deliveries_names)
+@with_data
+async def get_deliveries_names(message: Message, state: FSMContext, instance):
+    await handler_handlers.proccess_user_input(
+        message, state, instance, main.get_deliveries
     )

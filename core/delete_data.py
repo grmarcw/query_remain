@@ -85,19 +85,29 @@ async def delete_data_from_db(user_answer, instanse):
 def delete_element(element, instance):
     s_s = instance.survey_stage
     compositions = instance.compositions
-    ingredient_list = instance.ingredients
-    cifc = instance.cifc
 
     if s_s == 1:
-        list_for_delete = ingredient_list
+        if instance.data_filling_stage != 4:
+            list_for_delete = instance.ingredients
+        else:
+            if instance.filling_stage == 6:
+                list_for_delete = instance.shipment_in_date
+            elif instance.filling_stage == 7:
+                list_for_delete = instance.shipment_out_in_date
+            else:
+                list_for_delete = instance.deliveries_in_date
     elif s_s == 2:
-        list_for_delete = compositions[cifc]
+        list_for_delete = compositions[instance.cifc]
 
     if element == "отменить":
         next_state = FillingStates.waiting_for_data_confirmation
         if s_s == 1:
+            if instance.data_filling_stage != 4:
+                output = renderers.render_list(instance.ingredients, instance.data_filling_stage)
+            else:
+                output = renderers.render_list(list_for_delete, stage=3)
             return (
-                renderers.render_list(ingredient_list, instance.data_filling_stage),
+                output,
                 buttons_yes_or_not(),
                 next_state
             )
@@ -113,10 +123,17 @@ def delete_element(element, instance):
         if s_s == 1:
             if instance.data_filling_stage == 1:
                 deleted = constants.POSITION_IS_DELETED
+                output = renderers.render_list(instance.ingredients, instance.data_filling_stage)
             else:
-                deleted = constants.DELIVERIER_IS_DELETED
+                if instance.data_filling_stage == 4:
+                    if instance.filling_stage in (6,7):
+                        deleted = constants.SHIPMENT_IS_DELETED
+                        output = renderers.render_list(list_for_delete, stage=4)
+                    else:
+                        deleted = constants.DELIVERIER_IS_DELETED
+                        output = renderers.render_list(list_for_delete, stage=3)
             return (
-            f'{deleted.format(position=element)}\n{renderers.render_list(ingredient_list, instance.data_filling_stage)}',
+            f'{deleted.format(position=element)}\n{output}',
                 buttons_yes_or_not(),
                 next_state
             )
@@ -130,7 +147,10 @@ def delete_element(element, instance):
         if instance.data_filling_stage == 1:
             dont_exist = constants.PRODUCT_DONT_EXIST
         else:
-            dont_exist = constants.DELIVERIER_DONT_EXIST
+            if instance.filling_stage in (6,7):
+                dont_exist = constants.POSITION_DONT_EXIST
+            else:
+                dont_exist = constants.DELIVERIER_DONT_EXIST
         return (
             dont_exist.format(data_for_changing='\n'.join(list_for_delete)),
             button_generator(list_for_delete),

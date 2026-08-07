@@ -152,27 +152,107 @@ async def get_delivery_composition(deliverier, instance):
 
 
 def get_quantity_balance(quantity, instance):
+
+    if instance.filling_stage == 2:
+        incorrect_input = f'''{constants.INCORRECT_INPUT}
+{constants.INPUT_SOLD_PRODUCT_QUANTITY.format(product=instance.products[instance.count])}'''
+
+    else:
+        incorrect_input = f'''{constants.INCORRECT_INPUT}
+{constants.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count])}'''
+
     if not str(quantity).isdigit():
         return (
-            f'''{constants.INCORRECT_INPUT}
-{constants.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count])}''',
+            incorrect_input,
             ReplyKeyboardRemove(),
             None
         )
 
-    instance.compositions.setdefault(instance.ingredients[instance.count], quantity)
+    if instance.filling_stage == 1:
+        instance.compositions.setdefault(instance.ingredients[instance.count], quantity)
+        iteration_list = instance.ingredients
+    elif instance.filling_stage == 2:
+        instance.compositions.setdefault(instance.products[instance.count], quantity)
+        iteration_list = instance.products
+
     instance.count += 1
 
-    if instance.count < len(instance.ingredients):
+    if instance.count < len(iteration_list):
+        if instance.filling_stage == 2:
+            next_message = constants.INPUT_SOLD_PRODUCT_QUANTITY.format(product=instance.products[instance.count])
+        else:
+            next_message = constants.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count])
         return (
-            constants.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count]),
+            next_message,
             ReplyKeyboardRemove(),
             None)
     else:
         instance.survey_stage = 3
         instance.data_filling_stage = 3
+
+        confirm = renderers.render_dict_balance(instance.compositions)
         return (
-            renderers.render_dict_balance(instance.compositions),
+            confirm,
             buttons_yes_or_not(),
             FillingStates.waiting_for_data_confirmation
         )
+
+def get_deliveries(user_answer, instance):
+    if instance.filling_stage == 5:
+        no_more = constants.NO_MORE_SHIPMENT
+        data_list = instance.shipment_in_date
+        del_or_pos_list = instance.positions
+        other_input = constants.INPUT_OTHER_SHIPMENT
+        stage = 4
+        filling_stage = 6
+    elif instance.filling_stage == 7:
+        no_more = constants.NO_MORE_SHIPMENT
+        data_list = instance.shipment_out_in_date
+        del_or_pos_list = instance.positions
+        other_input = constants.INPUT_OTHER_SHIPMENT
+        stage = 4
+        filling_stage = 7
+    else:
+        no_more = constants.NO_MORE
+        data_list = instance.deliveries_in_date
+        del_or_pos_list = list(instance.delivery.keys())
+        other_input = constants.INPUT_OTHER_DELIVERIES
+        stage = 3
+        filling_stage = 3
+
+    if user_answer == no_more:
+        instance.survey_stage = 1
+        instance.filling_stage = filling_stage
+        instance.data_filling_stage = 4
+        return (
+            renderers.render_list(data_list, stage),
+            buttons_yes_or_not(),
+            FillingStates.waiting_for_data_confirmation
+        )
+    if user_answer not in del_or_pos_list:
+        return (
+            f'{constants.DELIVERIER_DONT_EXIST_WITHOUT_FORMAT}',
+            button_generator(del_or_pos_list, [no_more], without_cancel=True),
+            None
+        )
+    else:
+        if user_answer not in data_list:
+            data_list.append(user_answer)
+
+    if user_answer != no_more:
+        return (
+            other_input,
+            button_generator(del_or_pos_list, [no_more], without_cancel=True),
+            None
+        )
+
+    else:
+        instance.survey_stage = 1
+        instance.filling_stage = filling_stage
+        instance.data_filling_stage = 4
+        return (
+            renderers.render_list(instance.data_list, stage),
+            buttons_yes_or_not(),
+            FillingStates.waiting_for_data_confirmation
+        )
+

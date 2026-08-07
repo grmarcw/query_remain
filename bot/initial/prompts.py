@@ -9,6 +9,7 @@ from bot.states_fsm import ChangingData, DeleteStates
 from constants.constants import INPUT_START
 from core import check_data, handler_handlers, clarification_date
 from bot.context import InitialData, DailyData
+from core.decorators import with_data
 
 prompt_router = Router()
 
@@ -52,7 +53,7 @@ async def delete_or_show(message: Message, state: FSMContext):
     await state.set_state(DeleteStates.waiting_for_delete_or_display)
 
 @prompt_router.message(Command('input_daily_data'))
-async def delete_or_show(message: Message, state: FSMContext):
+async def input_daily_data(message: Message, state: FSMContext):
     instance = DailyData()
     instance.id_user = message.from_user.id
     await state.update_data(instance=instance)

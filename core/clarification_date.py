@@ -3,8 +3,10 @@ from datetime import date, datetime
 from aiogram.types import ReplyKeyboardRemove
 
 from bot.buttons import buttons_yes_or_not
-from bot.states_fsm import CheckDate, States
+from bot.states_fsm import CheckDate, States, Main
 from constants import constants
+from core import format_data_from_db
+from database import queries
 
 
 def clarification(instance):
@@ -18,13 +20,14 @@ def clarification(instance):
         CheckDate.waiting_for_confirm_date
     )
 
-def handle_date_confirmation(user_answer, instance):
-
+async def handle_date_confirmation(user_answer, instance):
     if user_answer == 'да':
+        data_from_db = await queries.get_user_data(instance.id_user)
+        format_data_from_db.format(instance, data_from_db)
         return (
-            None,
-            None,
-            None
+            constants.INPUT_SOLD_PRODUCT_QUANTITY.format(product=instance.products[0]),
+            ReplyKeyboardRemove(),
+            Main.waiting_for_quantity_sold
         )
     elif user_answer == 'нет':
         return (

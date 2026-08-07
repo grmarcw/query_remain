@@ -25,8 +25,18 @@ def render_list(list_for_output, stage=1 ):
 
     if stage == 1:
         str_for_output = "Вы хотите отслеживать следующие позиции:\n\n•{list_}\n"
-    else:
+    elif stage == 2:
         str_for_output = "Вы хотите отслеживать следующих поставщиков:\n\n•{list_}\n"
+    elif stage == 3:
+        if list_for_output == []:
+            str_for_output = 'Поставок в этот день не было'
+        else:
+            str_for_output = "В этот день призжали следующие поставки:\n\n•{list_}\n"
+    elif stage == 4:
+        if list_for_output == []:
+            str_for_output = 'Перемещений в этот день не было'
+        else:
+            str_for_output = "В этот день были следующие перемещения:\n\n•{list_}\n"
     return constants.CHECKING_CORRECT_DATA.format(
         sep=constants.SEPARATOR,
         checking_data=str_for_output.format(list_="\n•".join(list_for_output)),

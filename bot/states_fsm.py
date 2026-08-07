@@ -45,3 +45,7 @@ class CheckDate(States):
     waiting_for_confirm_date = State()
 
     waiting_for_correct_date = State()
+
+class Main(States):
+    waiting_for_quantity_sold = State()
+    waiting_for_deliveries_names = State()
