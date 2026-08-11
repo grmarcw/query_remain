@@ -6,12 +6,8 @@ from aiogram.types import Message
 from bot.states_fsm import States
 from core.decorators import with_data
 
-async def proccess_user_input(
-        message:Message,
-        state: FSMContext,
-        instance,
-        function
-):
+
+async def proccess_user_input(message: Message, state: FSMContext, instance, function):
 
     user_answer = message.text.lower()
     if inspect.iscoroutinefunction(function):

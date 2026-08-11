@@ -9,10 +9,15 @@ def format(instance, data_from_db):
             if position not in positions:
                 positions.append(position)
 
+    if data_from_db.positions_products:
+        products_list.extend(data_from_db.positions_products)
+        positions.extend(data_from_db.positions_products)
+
     products_list.sort()
     positions.sort()
+    instance.data_list = products_list
     instance.products = products_list
-    instance.delivery = deliveries_data
+    instance.deliveries = deliveries_data
     instance.positions = positions
 
     return instance
