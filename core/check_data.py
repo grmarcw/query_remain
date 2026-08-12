@@ -10,7 +10,7 @@ from bot.states_fsm import (
     Main,
 )
 import constants
-from constants import general, stage_11, stage_14, stage_13, stage_15
+from constants import general, stage_11, stage_14, stage_13, stage_15, stage_16, stage_7
 from core import renderers, import_loader
 from database import queries
 from database.models import SecondaryData
@@ -49,7 +49,7 @@ async def check_data_in_db(instance):
                             instance.data_list.append(ingredient)
                 if data.positions_products:
                     instance.data_list.extend(data.positions_products)
-                    message_answer = constants.stage_7.ASK_QUANTITY.format(
+                    message_answer = stage_7.ASK_QUANTITY.format(
                         position=instance.data_list[instance.count]
                     )
                     buttons = ReplyKeyboardRemove()
@@ -170,8 +170,7 @@ def check_correctness_data(user_answer: str, instance):
             buttons = buttons_yes_or_not()
             next_state = States.waiting_save_confirmation
         elif stage == 8:
-            instance.dict_in_dict["date"] = instance.date
-            instance.dict_in_dict["sold"] = instance.data_dict
+            instance.dict_in_dict["проданная продукция"] = instance.data_dict
             instance.current_data_list = []
             instance.current_data = instance.current_data_list
             instance.data_list = list(instance.deliveries.keys())
@@ -187,7 +186,7 @@ def check_correctness_data(user_answer: str, instance):
 
         elif stage == 9:
             if instance.current_data_list == []:
-                instance.dict_in_dict["delivery"] = {}
+                instance.dict_in_dict["поставки"] = {}
                 instance.survey_stage = 11
                 instance.data_list = instance.positions.copy()
                 instance.data_list_copy = instance.data_list.copy()
@@ -228,10 +227,10 @@ def check_correctness_data(user_answer: str, instance):
                 buttons = ReplyKeyboardRemove()
                 next_state = FillingStates.waiting_quantity
         elif stage == 10:
-            instance.dict_in_dict.setdefault("delivery", {})
+            instance.dict_in_dict.setdefault("поставки", {})
             for positions_and_quantity in instance.recipes.values():
                 for position, quantity in positions_and_quantity.items():
-                    instance.dict_in_dict["delivery"][position] = quantity
+                    instance.dict_in_dict["поставки"][position] = quantity
 
             instance.data_list = instance.positions.copy()
             instance.data_list_copy = instance.data_list.copy()
@@ -248,7 +247,7 @@ def check_correctness_data(user_answer: str, instance):
         elif stage == 11:
             if instance.current_data_list == []:
                 instance.survey_stage = 13
-                instance.dict_in_dict["shipment_from"] = {}
+                instance.dict_in_dict["перемещения с других точек"] = {}
 
                 instance.data_list = instance.positions.copy()
                 instance.data_list_copy = instance.data_list.copy()
@@ -278,7 +277,7 @@ def check_correctness_data(user_answer: str, instance):
             buttons = ReplyKeyboardRemove()
             next_state = Main.waiting_for_quantity_sold
         elif stage == 12:
-            instance.dict_in_dict["shipment_from"] = instance.data_dict
+            instance.dict_in_dict["перемещения с других точек"] = instance.data_dict
 
             instance.data_list = instance.positions.copy()
             instance.data_list_copy = instance.data_list.copy()
@@ -295,7 +294,7 @@ def check_correctness_data(user_answer: str, instance):
         elif stage == 13:
             if instance.current_data_list == []:
                 instance.survey_stage = 15
-                instance.dict_in_dict["shipment_to"] = {}
+                instance.dict_in_dict["перемещения на другие точки"] = {}
 
                 instance.positions_products = sorted(
                     list(set(instance.positions + instance.products))
@@ -324,7 +323,7 @@ def check_correctness_data(user_answer: str, instance):
             buttons = ReplyKeyboardRemove()
             next_state = Main.waiting_for_quantity_sold
         elif stage == 14:
-            instance.dict_in_dict["shipment_to"] = instance.data_dict
+            instance.dict_in_dict["перемещения на другие точки"] = instance.data_dict
 
             instance.positions_products = sorted(
                 list(set(instance.positions + instance.products))
@@ -342,7 +341,40 @@ def check_correctness_data(user_answer: str, instance):
             )
             next_state = FillingStates.waiting_for_products_list
         elif stage == 15:
-            pass
+            if instance.current_data_list == []:
+
+                instance.survey_stage = 17
+                instance.dict_in_dict["списания"] = {}
+                instance.current_data = instance.dict_in_dict
+
+                return (
+                 general.CONFIRM_SAVING,
+                 buttons_yes_or_not(),
+                 States.waiting_save_confirmation)
+
+            instance.data_dict = {}
+            instance.count = 0
+
+            instance.data_list = instance.current_data_list.copy()
+
+            instance.current_position_for_change = instance.data_list[0]
+            instance.current_data = instance.data_dict
+
+            instance.survey_stage = 16
+
+            message_answer = stage_16.ASK_QUANTITY.format(
+                position=instance.data_list[0]
+            )
+            buttons = ReplyKeyboardRemove()
+            next_state = Main.waiting_for_quantity_sold
+        elif stage == 16:
+            instance.survey_stage = 17
+            instance.current_data = instance.dict_in_dict
+
+            instance.dict_in_dict['списания'] = instance.data_dict
+            message_answer = general.CONFIRM_SAVING
+            buttons = buttons_yes_or_not()
+            next_state = States.waiting_save_confirmation
 
     elif user_answer == "нет":
         if stage in (1, 2, 5, 9, 11, 13, 15):
@@ -374,7 +406,7 @@ def check_correctness_data(user_answer: str, instance):
                 buttons = buttons_yes_or_not()
                 next_state = None
                 instance.count = 0
-        elif stage in (7, 8, 12, 14):
+        elif stage in (7, 8, 12, 14, 16):
             instance.current_data_list = instance.data_list.copy()
             message_answer = const.ASK_CHOOSING_ACTION + const.CHOOSING_ACTION
             buttons = button_generator(const.CHOOSING_ACTION_LIST)
@@ -494,7 +526,7 @@ def choose_action(user_answer, instance):
             buttons = ReplyKeyboardRemove()
             next_state = FillingStates.waiting_quantity
 
-        elif stage in (12, 14):
+        elif stage in (12, 14, 16):
             instance.data_dict = {}
             instance.count = 0
             instance.data_list = instance.current_data_list.copy()

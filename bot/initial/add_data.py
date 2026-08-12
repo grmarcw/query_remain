@@ -1,4 +1,5 @@
 from aiogram import Router
+from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from click import echo
@@ -17,6 +18,6 @@ async def handler_add(message: Message, state: FSMContext, instance):
     await handler_handlers.proccess_user_input(message, state, instance, add)
 
 
-@add_router.message()
+@add_router.message(StateFilter(None))
 async def echo(message: Message):
-    await message.answer("/start")
+    await message.answer("/help")

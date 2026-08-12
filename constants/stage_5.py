@@ -22,8 +22,3 @@ ASK_NAME_FOR_DELETE = "Какого поставщика вы хотите уд�
 
 ITEM_DELETED = 'Поставщик "{item}" удален\n-----\n'
 
-"""
-message_answer =
-buttons =
-next_state =
-"""

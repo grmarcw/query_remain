@@ -39,6 +39,8 @@ class ChangingData(States):
 
     waiting_new_quantity = State()
 
+    waiting_for_date_for_delete = State()
+
 
 class CurrentActualBalance(States):
     waiting_for_quantity = State()

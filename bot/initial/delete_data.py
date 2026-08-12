@@ -8,7 +8,7 @@ from core.decorators import with_data
 from core.delete_data import (
     handle_show_or_delete_request,
     delete_data_from_db,
-    delete_element,
+    delete_element, delete_date,
 )
 
 delete_router = Router()
@@ -30,10 +30,15 @@ async def handler_delete_data_from_db(message: Message, state: FSMContext, insta
     await handler_handlers.proccess_user_input(
         message, state, instance, delete_data_from_db
     )
-    await state.clear()
 
 
 @delete_router.message(ChangingData.delete)
 @with_data
 async def handler_delete_element(message: Message, state: FSMContext, instance):
     await handler_handlers.proccess_user_input(message, state, instance, delete_element)
+
+
+@delete_router.message(ChangingData.waiting_for_date_for_delete)
+@with_data
+async def handler_delete_date(message: Message, state: FSMContext, instance):
+    await handler_handlers.proccess_user_input(message, state, instance, delete_date)

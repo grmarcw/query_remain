@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
 
 from database.session import session_maker
 from database.models import InitialData, SecondaryData
@@ -76,3 +77,28 @@ async def add_initial_balance(id: int, data: dict):
         new_data = SecondaryData(id=id, initial_balance=data)
         sess.add(new_data)
         await sess.commit()
+
+async def add_daily_data(id: int, daily_data: dict):
+    async with session_maker() as sess:
+        user = await sess.get(SecondaryData, id)
+        user.data = user.data + [daily_data]
+        await sess.commit()
+
+
+async def delete_daily_data(id, date):
+    async with session_maker() as sess:
+        user = await sess.get(SecondaryData, id)
+        index_dict_for_delete = None
+        for index, data_dict in enumerate(user.data):
+            if date in data_dict:
+                index_dict_for_delete = index
+                break
+
+        del user.data[index_dict_for_delete]
+        flag_modified(user, 'data')
+        await sess.commit()
+
+
+
+
+

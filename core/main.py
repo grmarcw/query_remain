@@ -1,11 +1,13 @@
 from aiogram.types import ReplyKeyboardRemove
 from black import const
+from pygments.lexer import include
 
 from bot.buttons import buttons_yes_or_not, button_generator
 from bot.states_fsm import FillingStates, States
 from constants import general, stage_2
 from core import renderers, import_loader
 from database import queries
+from database.models import SecondaryData
 
 
 def get_data_list(data_string, instance):
@@ -94,7 +96,6 @@ def get_composition(product_string, instance):
 
 
 def get_quantity(quantity, instance):
-    print(instance.data_dict)
 
     stage = instance.survey_stage
 
@@ -187,6 +188,13 @@ async def saving(user_answer, instance):
             )
         elif stage == 7:
             await queries.add_initial_balance(instance.user_id, instance.data_dict)
+
+        elif stage == 17:
+            dict_for_saving = {}
+            dict_for_saving[instance.date] = instance.dict_in_dict
+            instance.current_data = dict_for_saving
+
+            await queries.add_daily_data(instance.user_id, dict_for_saving)
 
         message_answer = general.SHOW_SAVING_DATA.format(
             data=renderers.render_list_or_dict(

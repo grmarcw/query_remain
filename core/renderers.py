@@ -74,7 +74,7 @@ def render_list_or_dict(data, stage=1, list_for_add=None, option=1):
 
         str_for_output = "\n".join(list_for_output)
 
-    elif stage in (7, 8, 12, 14):
+    elif stage in (7, 8, 12, 14, 16):
         list_for_output = []
 
         for position, quantity in data.items():
@@ -113,6 +113,44 @@ def render_list_or_dict(data, stage=1, list_for_add=None, option=1):
         else:
             str_for_output = "В этот день были следующие списания:\n\n•{list_}\n"
             str_for_output = str_for_output.format(list_="\n•".join(data))
+
+    elif stage == 17:
+        list_for_output = []
+
+        for date, data_ in data.items():
+            list_for_output.append(
+                f'"дата": {date}\n'
+            )
+            for name_column, data_dict in data_.items():
+                list_for_output.append(f'\n----\n{name_column}:\n----\n')
+                if data_dict:
+                    for product, quantity in data_dict.items():
+                        list_for_output.append(
+                            f'{product}:  {quantity}'
+                        )
+                else:
+                    list_for_output.append('нет')
+
+        str_for_output = "\n".join(list_for_output)
+
+    elif stage == 18:
+        list_for_output = []
+        for dictionary in data:
+            for date, dict_data in dictionary.items():
+                list_for_output.append(
+                    f'дата: {date}\n'
+                )
+                for name_column, data_from_column in dict_data.items():
+                    list_for_output.append(f'\n----\n{name_column}:\n----\n')
+                    if data_from_column:
+                        for product, quantity in data_from_column.items():
+                            list_for_output.append(
+                                f'{product}:  {quantity}'
+                            )
+                    else:
+                        list_for_output.append('нет')
+
+        str_for_output = "\n".join(list_for_output)
 
     if option == 1:
         return general.CHECKING_CORRECTNESS.format(checking_data=str_for_output)

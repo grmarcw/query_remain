@@ -20,5 +20,5 @@ class SecondaryData(Base):
     __tablename__ = "daily_usage"
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True)
-    initial_balance: Mapped[dict] = mapped_column(JSON)
-    data: Mapped[dict] = mapped_column(JSON, nullable=True)
+    initial_balance: Mapped[dict] = mapped_column(JSONB)
+    data: Mapped[dict] = mapped_column(JSONB, default=list)

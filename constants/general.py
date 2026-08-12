@@ -28,7 +28,7 @@ FILLED_DELIVERY_DATA = "Данные о поставках заполнены\n"
 FILLED_BALANCE_DATA = "Данные о начальном остатке продукции заполнены\n"
 
 CONFIRM_SAVING = "Подтвердите сохранение данных"
-SHOW_SAVING_DATA = "Сохранены следующие данные:\n{data}\n----\nДля продолжения ввода первичных данных, нажмите /start"
+SHOW_SAVING_DATA = "Сохранены следующие данные:\n-----\n{data}\n----\nДля продолжения ввода данных, нажмите /start"
 
 DATE_CLARIFICATION = "Вы хотите заполнить данные за {date}?"
 INPUT_CORRECT_DATE = (

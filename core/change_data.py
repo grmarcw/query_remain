@@ -23,7 +23,7 @@ def get_element_for_change(element, instance):
 
         message_answer = const.ASK_NEW_NAME
         next_state = ChangingData.change
-        if stage in (1, 3, 5, 7, 8, 10, 12, 14):
+        if stage in (1, 3, 5, 7, 8, 10, 12, 14, 16):
             buttons = ReplyKeyboardRemove()
         else:
             buttons = button_generator(instance.data_list)
@@ -101,7 +101,7 @@ def change(new_name, instance):
             instance.data_dict[position] = instance.current_data_list.copy()
             instance.current_position_for_change = None
             instance.current_data_list = []
-        elif stage in (7, 8, 12, 14):
+        elif stage in (7, 8, 12, 14, 16):
             try:
                 float(new_name)
                 instance.data_dict[instance.current_position_for_change] = new_name
