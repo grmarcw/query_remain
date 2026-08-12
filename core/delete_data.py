@@ -77,7 +77,7 @@ async def delete_data_from_db(user_answer, instance):
     delete_list = ["Все данные", "Данные о поставках", "Данные об остатке продукции", "Данные за определенную дату"]
     if user_answer == "Отменить":
         return (
-            f"{general.OPERATION_CANCEL}\n{general.INPUT_START}",
+            general.OPERATION_CANCEL,
             ReplyKeyboardRemove(),
             States.clear,
         )
@@ -102,7 +102,7 @@ async def delete_data_from_db(user_answer, instance):
                 ChangingData.waiting_for_date_for_delete
             )
         return (
-            f"{general.DATA_IS_DELETED}\n{general.INPUT_START}",
+            general.DATA_IS_DELETED,
             ReplyKeyboardRemove(),
             States.clear,
         )
@@ -129,7 +129,7 @@ async def delete_date(date, instance):
     elif date in instance.data_list:
         await queries.delete_daily_data(instance.user_id, date)
         return (
-            f"{general.DATA_IS_DELETED}\n{general.INPUT_START}",
+            general.DATA_IS_DELETED,
             ReplyKeyboardRemove(),
             States.clear
         )

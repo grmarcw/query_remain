@@ -2,10 +2,9 @@ from aiogram import Router
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
-from click import echo
 
 from bot.states_fsm import ChangingData
-from core import handler_handlers, add_data
+from core import handler_handlers
 from core.add_data import add
 from core.decorators import with_data
 
@@ -20,4 +19,4 @@ async def handler_add(message: Message, state: FSMContext, instance):
 
 @add_router.message(StateFilter(None))
 async def echo(message: Message):
-    await message.answer("/help")
+    await message.answer("Неизвестная команда\n/help")

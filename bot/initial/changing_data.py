@@ -1,6 +1,6 @@
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.types import Message
 
 from bot.states_fsm import ChangingData
 from core import change_data, handler_handlers

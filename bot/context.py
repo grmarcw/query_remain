@@ -1,37 +1,5 @@
 from typing import List, Dict
 
-
-class InitialData:
-    def __init__(self):
-        self.id_user: int = None
-        self.ingredients: List[str] = (
-            []
-        )  # список отслеживаемых ингредиентов или поставщиков
-        self.recipes: Dict[str, dict] = {}  # словарь {товар:{ингредиент: количество}}
-        self.compositions: Dict[str, list] = (
-            {}
-        )  # словарь {отслеживаемый ингредиент: [список, из, товаров]}
-        self.survey_stage: int = 1  # текущий этап заполнения данных
-        self.product_is_ingredient: List[str] = (
-            []
-        )  # список ингредиентов, которые являются товарами
-        self.ingredients_without_products: List[str] = []
-        self.count: int = 0  # универсальный счетчик
-        self.idx_ing: int = 0  # индекс ингридиента
-        self.idx_prd: int = 0  # индекс продукта
-        self.cpl: List[str] = []  # текущий список продуктов для изменения
-        self.cil: List[str] = []  # текущий список ингридиентов для изменения
-        self.cifc: str = None  # текущий ингридиент для изменения
-        self.pfc: str = None  # текущая позиция для изменения
-        self.data_filling_stage: int = (
-            1  # текущий этап заполнения данных (рецепты или поставки)
-        )
-        self.deliveries: Dict[str, list] = {}  # данные о поставщках
-
-        self.full_ingredients_list: List[str] = []  # список ингридиентов
-        self.filling_stage = 1
-
-
 class DataForStates:
     def __init__(self):
         self.user_id: int = 0
@@ -51,7 +19,9 @@ class DataForStates:
         # 11 - заполнение списка продукции, перемещенной с другой точки
         # 12/14 - заполнение данных о количестве перемещенной продукции
         # 13 - заполнение списка продукции, перемещенной на другую точку
-        # 14 - заполнение списка списанной продукции
+        # 15 - заполнение списка списанной продукции
+        # 16 - заполнение данных о кол-ве списанной продукции
+        # 17 - сохранение всех вторичных данных в бд
         self.current_data_list: List[str] = []
         # stage == 1 -> первичный список ингредиентов
         # stage == 2 -> первичный список позиций, которые являются товарами
@@ -87,7 +57,7 @@ class DataForStates:
         self.recipes = {}
         # stage == 4 -> вложенный словарь с рецептами {'капучино'{'зерно':18, 'молоко': 250}}
         self.dict_in_dict = {}
-        # stage == 8 -> вложенный словарь с данными
+        # stage == 8 -> вложенный словарь с данными:
         # о дате,
         # проданной продукции,
         # поставках
