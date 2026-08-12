@@ -1,10 +1,10 @@
-def nest_dict(some_dictionary:dict):
-    '''
+def nest_dict(some_dictionary: dict):
+    """
     создает вложенный словарь из словаря,
     где ключ-строка, а значение-список
     :param some_dictionary: словарь для преобразования
     :return: вложенный словарь
-    '''
+    """
 
     dict_for_return = {}
 

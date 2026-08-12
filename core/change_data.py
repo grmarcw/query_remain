@@ -2,224 +2,171 @@ from aiogram.types import ReplyKeyboardRemove
 
 from bot.buttons import buttons_yes_or_not, button_generator, buttons_choose_action
 from bot.states_fsm import FillingStates, ChangingData
-from constants import constants as answer
-from core import renderers
+from constants import general as answer, general
+from core import renderers, import_loader
 
 
-def get_element_for_change(element, inst):
-    if inst.survey_stage == 1:
-        changing_list = inst.ingredients
-        inst.cifc = element
-    elif inst.survey_stage == 2:
-        changing_list = inst.compositions[inst.cifc]
-        inst.pfc = element
-    else:
-        changing_list = []
+def get_element_for_change(element, instance):
 
-
+    stage = instance.survey_stage
+    const = import_loader.get_constants(stage)
 
     if element == "отменить":
+        message_answer = renderers.render_list_or_dict(
+            instance.current_data, stage, instance.positions_products
+        )
+        buttons = buttons_yes_or_not()
         next_state = FillingStates.waiting_for_data_confirmation
-        if inst.survey_stage == 1:
-            if inst.data_filling_stage == 1:
-                output = renderers.render_list(changing_list, inst.data_filling_stage)
-            elif inst.data_filling_stage == 3:
-                output = renderers.render_dict_balance(inst.compositions)
-                inst.survey_stage == 3
-            return(
-                output,
-                buttons_yes_or_not(),
-                next_state
-            )
-        elif inst.survey_stage == 2:
-            return (
-                renderers.render_dict(inst.compositions, inst.product_is_ingredient),
-                buttons_yes_or_not(),
-                next_state
-            )
-    elif element not in changing_list:
-        if inst.data_filling_stage == 1 or inst.data_filling_stage == 3:
-            dont_exist = answer.POSITION_DONT_EXIST
+
+    elif element in instance.current_data_list:
+        instance.current_position_for_change = element
+
+        message_answer = const.ASK_NEW_NAME
+        next_state = ChangingData.change
+        if stage in (1, 3, 4, 5, 7, 8, 10, 12, 14, 16):
+            buttons = ReplyKeyboardRemove()
         else:
-            dont_exist = answer.DELIVERIER_DONT_EXIST
-        return (
-            dont_exist.format(data_for_changing="\n•".join(changing_list)),
-            button_generator(changing_list),
-            None
-        )
-    elif element in changing_list:
-        if inst.data_filling_stage == 3:
-            output = answer.ASK_QUANTITY_BALANCE.format(position=inst.cifc)
-        else:
-            output = answer.INPUT_NEW_NAME
-        return (
-            output,
-            ReplyKeyboardRemove(),
-            ChangingData.change
-        )
+            buttons = button_generator(instance.data_list)
 
-def change_data(user_answer, instance):
-
-    if instance.survey_stage == 1:
-        list_for_change = instance.ingredients
-        element_for_change = instance.cifc
-    elif instance.survey_stage == 2:
-        list_for_change = instance.compositions[instance.cifc]
-        element_for_change = instance.pfc
-
-    if user_answer == "отменить":
-        next_stage = FillingStates.waiting_for_data_confirmation
-        if instance.survey_stage == 1:
-            if instance.data_filling_stage == 3:
-                output = renderers.render_dict_balance(instance.compositions)
-            else:
-                output = renderers.render_list(instance.ingredients, instance.data_filling_stage)
-            return (
-                output,
-                buttons_yes_or_not(),
-                next_stage
-            )
-        elif instance.survey_stage == 2:
-            return (
-                renderers.render_dict(instance.compositions, instance.product_is_ingredient),
-                buttons_yes_or_not(),
-                next_stage
-            )
     else:
-        if instance.data_filling_stage == 3:
-            if str(user_answer).isdigit():
-                instance.compositions[instance.cifc] = user_answer
-                instance.survey_stage = 3
-                return (
-                    renderers.render_dict_balance(instance.compositions),
-                    buttons_yes_or_not(),
-                    FillingStates.waiting_for_data_confirmation
-                )
-            else:
-                return (
-                    f'''{answer.INCORRECT_INPUT}
-{answer.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count])}''',
-                    ReplyKeyboardRemove(),
-                    None
-                )
+        if stage in (1, 2, 3, 5, 9, 10, 11, 12, 13, 14, 15):
+            buttons = button_generator(instance.current_data_list)
         else:
-            index = list_for_change.index(element_for_change)
-            list_for_change[index] = user_answer
-            next_state = FillingStates.waiting_for_data_confirmation
-            if instance.survey_stage == 1:
-                return (
-                    renderers.render_list(list_for_change, instance.data_filling_stage),
-                    buttons_yes_or_not(),
-                    next_state
-                )
-            elif instance.survey_stage == 2:
-                if user_answer == instance.cifc:
-                    del instance.compositions[user_answer]
-                    instance.product_is_ingredient.append(user_answer)
-                    instance.ingredients_without_products.remove(user_answer)
-                return (
-                    renderers.render_dict(instance.compositions, instance.product_is_ingredient),
-                    buttons_yes_or_not(),
-                    next_state)
+            buttons = button_generator(instance.data_list)
+        message_answer = const.DONT_EXIST + const.ASK_NAME_FOR_CHANGE
+        next_state = None
 
-def get_composition_for_change(user_answer, instance):
+    return (message_answer, buttons, next_state)
 
-    if user_answer == "отменить":
-        if instance.survey_stage == 2:
+
+def change(new_name, instance):
+
+    stage = instance.survey_stage
+
+    cpfc = instance.current_position_for_change
+    changing_list = instance.current_data_list
+
+    const = import_loader.get_constants(stage)
+
+    if new_name == "отменить":
+        message_answer = renderers.render_list_or_dict(
+            instance.current_data, stage, instance.positions_products
+        )
+        buttons = buttons_yes_or_not()
+        next_state = FillingStates.waiting_for_data_confirmation
+    elif stage == 4:
+        position = instance.current_position_for_change
+        product = list(instance.recipes.keys())[instance.count]
+        try:
+            float(new_name)
+        except ValueError:
             return (
-                renderers.render_dict(instance.compositions, instance.product_is_ingredient),
-                buttons_yes_or_not(),
-                FillingStates.waiting_for_data_confirmation
-                )
-        elif instance.survey_stage == 3:
-            return (
-                    answer.CHECKING_CORRECT_DATA.format(
-                        sep=answer.SEPARATOR, checking_data=renderers.show_recipes(instance.recipes)
-                    ),
-                    buttons_yes_or_not(),
-                    FillingStates.waiting_for_data_confirmation
-                )
-    elif user_answer not in list(instance.compositions.keys()):
-        if instance.survey_stage == 2:
-            return (
-                    answer.POSITION_DONT_EXIST.format(data_for_changing=renderers.render_dict(instance.compositions, option=2)),
-                    button_generator(list(instance.compositions.keys())),
-                None
-                )
-        elif instance.survey_stage == 3:
-            return (
-                    answer.POSITION_DONT_EXIST.format(data_for_changing="\n•".join(list(instance.recipes[instance.pfc].keys()))),
-                    button_generator(list(instance.recipes[instance.pfc])),
-                    None
-                )
-    else:
-        if instance.survey_stage == 2:
-            instance.cifc = user_answer
-            return (
-                answer.CHOOSE_POSITION_FOR_CHANGE.format(sep=answer.SEPARATOR,choose_list= answer.CHOOSING_ACTION),
-                buttons_choose_action(),
-                ChangingData.waiting_result_choosing_action
-            )
-        elif instance.survey_stage == 3:
-            instance.cifc = user_answer
-            return (
-                answer.ASK_QUANTITY.format(ingr=user_answer, product=instance.pfc),
+                general.INCORRECT_INPUT
+                + const.ASK_QUANTITY.format(position=position, product=product),
                 ReplyKeyboardRemove(),
-                ChangingData.waiting_new_quantity
+                None,
+            )
+        else:
+            instance.current_data[product][position] = new_name
+            return (
+                renderers.render_list_or_dict(
+                    instance.current_data, stage, instance.positions_products
+                ),
+                buttons_yes_or_not(),
+                FillingStates.waiting_for_data_confirmation,
             )
 
-def recomposites(user_answer, instance):
-    if str(user_answer).isdigit():
-        instance.compositions[instance.cifc] = user_answer
-        return (
-            renderers.render_dict(instance.compositions, instance.product_is_ingredient),
-            buttons_yes_or_not(),
-            FillingStates.waiting_for_data_confirmation
+    elif new_name in instance.current_data_list:
+        message_answer = const.ALREADY_EXIST + renderers.render_list_or_dict(
+            instance.current_data, stage, instance.positions_products
         )
+        buttons = buttons_yes_or_not()
+        next_state = FillingStates.waiting_for_data_confirmation
     else:
-        return (
-        f'{answer.INCORRECT_INPUT}\n{answer.ASK_QUANTITY.format(ingr=instance.cil[instance.idx_ing], product=instance.cpl[instance.idx_prd])}',
-            ReplyKeyboardRemove(),
-            None
+        if stage in (1, 2, 3, 5, 6, 9, 11, 13, 15):
+            if stage in (2, 9, 11, 13, 15):
+                if new_name not in instance.data_list:
+                    return (
+                        general.INCORRECT_INPUT + const.ASK_NEW_NAME,
+                        button_generator(instance.data_list),
+                        None,
+                    )
+            index_changing_element = changing_list.index(cpfc)
+            instance.current_data_list[index_changing_element] = new_name
+        if stage in (2, 9, 11, 13, 15):
+            instance.data_list.append(cpfc)
+            instance.data_list.remove(new_name)
+        elif stage == 3:
+            position = list(instance.data_dict.keys())[instance.count]
+            instance.data_dict[position] = instance.current_data_list.copy()
+            instance.current_position_for_change = None
+            instance.current_data_list = []
+        elif stage in (7, 8, 12, 14, 16):
+            try:
+                float(new_name)
+                instance.data_dict[instance.current_position_for_change] = new_name
+            except ValueError:
+                return (
+                    general.INCORRECT_INPUT
+                    + const.ASK_QUANTITY.format(
+                        position=instance.current_position_for_change
+                    ),
+                    ReplyKeyboardRemove(),
+                    None,
+                )
+        elif stage == 10:
+            try:
+                float(new_name)
+                current_delivery = list(instance.data_dict.keys())[instance.count]
+                instance.current_data[current_delivery][
+                    instance.current_position_for_change
+                ] = new_name
+            except ValueError:
+                return (
+                    general.INCORRECT_INPUT + const.ASK_NEW_NAME,
+                    ReplyKeyboardRemove(),
+                    None,
+                )
+        message_answer = renderers.render_list_or_dict(
+            instance.current_data, stage, instance.positions_products
         )
+        buttons = buttons_yes_or_not()
+        next_state = FillingStates.waiting_for_data_confirmation
 
-def get_position_name_for_change(user_answer, instance):
+    return (message_answer, buttons, next_state)
 
-    if user_answer == "отменить":
-        return (
-            answer.CHECKING_CORRECT_DATA.format(
-                sep=answer.SEPARATOR, checking_data=renderers.show_recipes(instance.recipes)
-            ),
-            buttons_yes_or_not(),
-            FillingStates.waiting_for_data_confirmation
+
+def get_composition_for_change(position_name, instance):
+
+    stage = instance.survey_stage
+    const = import_loader.get_constants(stage)
+
+    if position_name == "отменить":
+        message_answer = renderers.render_list_or_dict(
+            instance.current_data, stage, instance.positions_products
         )
-    elif user_answer in list(instance.recipes.keys()):
-        instance.pfc = user_answer
-        return (
-            answer.ASK_POSITION_FOR_CHANGE,
-            button_generator(list(instance.recipes[user_answer].keys())),
-            ChangingData.waiting_ingredient_name
-        )
+        buttons = buttons_yes_or_not()
+        next_state = FillingStates.waiting_for_data_confirmation
+
+    elif position_name in list(instance.current_data.keys()):
+        instance.count = list(instance.current_data.keys()).index(position_name)
+        if stage == 4 or stage == 10:
+            instance.current_data_list = list(
+                instance.current_data[position_name].keys()
+            )
+        else:
+            instance.current_data_list = instance.current_data[position_name]
+
+        message_answer = const.ASK_CHOOSING_ACTION + const.CHOOSING_ACTION
+        buttons = button_generator(const.CHOOSING_ACTION_LIST)
+        next_state = ChangingData.waiting_result_choosing_action
+
     else:
-        return (
-            answer.PRODUCT_DONT_EXIST.format(data_for_changing="\n•".join(list(instance.recipes.keys()))),
-            button_generator(list(instance.recipes.keys())),
-            None
-        )
+        if stage == 4:
+            buttons = button_generator(list(instance.recipes.keys()))
+        else:
+            buttons = button_generator(instance.data_list)
+        message_answer = const.DONT_EXIST + const.ASK_KEY_FOR_CHANGE
+        next_state = None
 
-def change_quantity(user_answer, instance):
-    if str(user_answer).isdigit():
-        instance.recipes[instance.pfc][instance.cifc] = user_answer
-        return (
-            answer.CHECKING_CORRECT_DATA.format(
-                sep=answer.SEPARATOR, checking_data=renderers.show_recipes(instance.recipes)
-            ),
-            buttons_yes_or_not(),
-            FillingStates.waiting_for_data_confirmation
-        )
-    else:
-        return (
-        f'{answer.INCORRECT_INPUT}\n{answer.ASK_QUANTITY.format(ingr=instance.cifc, product=instance.pfc)}',
-            ReplyKeyboardRemove(),
-            None
-        )
+    return (message_answer, buttons, next_state)

@@ -27,10 +27,14 @@ def buttons_yes_or_not():
 def buttons_choose_action(filling_stage=1):
     bilder = ReplyKeyboardBuilder()
     if filling_stage == 1:
-        item = 'позицию'
+        item = "позицию"
+    elif filling_stage == 5:
+        item = "перемещение"
     else:
-        item = 'поставщика'
-    bilder.button(text=f"Поменять {item}")
+        item = "поставщика"
+
+    if filling_stage != 4 and filling_stage != 5:
+        bilder.button(text=f"Поменять {item}")
     bilder.button(text=f"Удалить {item}")
     bilder.button(text=f"Добавить {item}")
     bilder.button(text="Начать заполнение заново")
@@ -42,11 +46,15 @@ def buttons_choose_action(filling_stage=1):
     return kb
 
 
-def button_generator(some_list, without_cancel=False):
+def button_generator(some_list, list_for_append=[], without_cancel=False):
     builder = ReplyKeyboardBuilder()
 
     for i in some_list:
         builder.add(KeyboardButton(text=i))
+    if list_for_append != []:
+        for i in list_for_append:
+            builder.add(KeyboardButton(text=i))
+
     if not without_cancel:
         builder.add(KeyboardButton(text="Отменить"))
 

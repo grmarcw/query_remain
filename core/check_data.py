@@ -1,288 +1,580 @@
 from aiogram.types import ReplyKeyboardRemove
-from sqlalchemy.util import await_only
 
-from bot.buttons import buttons_choose_action, button_generator, buttons_yes_or_not, buttons_show_delete
-from bot.states_fsm import States, ChangingData, DeleteStates, FillingStates, CurrentActualBalance
-from constants import constants
-from core import transformers, renderers
+import constants
+from bot.buttons import button_generator, buttons_yes_or_not, buttons_show_delete
+from bot.states_fsm import (
+    States,
+    ChangingData,
+    FillingStates,
+    CurrentActualBalance,
+    Main,
+)
+import constants
+from constants import general, stage_11, stage_14, stage_13, stage_15, stage_16, stage_7, stage_6
+from core import renderers, import_loader
 from database import queries
 from database.models import SecondaryData
 
 
-def init_user_data(instance):
-    instance.ingredients = []   # список отслеживаемых ингредиентов
-    instance.ingredients_without_products = []
-    instance.compositions = {}  # словарь {отслеживаемый ингредиент: [список, из, товаров]}
-    instance.recipes = {}       # словарь {товар:{ингредиент: количество}}
-    instance.survey_stage = 1            # текущий этап заполнения данных
-    instance.product_is_ingredient = []  # список ингредиентов, которые являются товарами
-    instance.count = 0                   # универсальный счетчик
-    instance.idx_ing = 0                 # индекс ингридиента
-    instance.idx_prd = 0                 # индекс продукта
-    instance.cpl = []                    # текущий список продуктов
-    instance.cil = []                    # текущий список ингридиентов
-    instance.cifc = ''                   # текущий ингридиент для изменения
-    instance.pfc = ''
-
-
 async def check_data_in_db(instance):
-    data = await queries.get_user_data(instance.id_user)
+    data = await queries.get_user_data(instance.user_id)
+    data_from_second_db = await queries.get_user_data(instance.user_id, SecondaryData)
     if data is None:
-        return (
-            constants.ASK_LIST_INGREDIENTS,
-            ReplyKeyboardRemove(),
-            FillingStates.waiting_for_data_list
-        )
+        instance.survey_stage = 1
+        message_answer = import_loader.get_constants(instance.survey_stage).ASK_LIST
+        buttons = ReplyKeyboardRemove()
+        next_state = FillingStates.waiting_for_data_list
     elif data is not None:
         if data.deliveries is None:
-            instance.data_filling_stage = 2
+            instance.survey_stage = 5
+            instance.current_data_list = []
+            instance.positions_products = []
             for recipe in data.recipes.values():
                 for ingredient in recipe.keys():
-                    if ingredient not in instance.full_ingredients_list:
-                        instance.full_ingredients_list.append(ingredient)
-            return(
-                constants.ASK_DELIVERIES_LIST,
-                ReplyKeyboardRemove(),
-                FillingStates.waiting_for_data_list
-            )
+                    if ingredient not in instance.data_list:
+                        instance.data_list.append(ingredient)
+            if data.positions_products:
+                instance.data_list.extend(data.positions_products)
+            message_answer = import_loader.get_constants(instance.survey_stage).ASK_LIST
+            buttons = ReplyKeyboardRemove()
+            next_state = FillingStates.waiting_for_data_list
+
         else:
-            if await queries.get_user_data(instance.id_user, SecondaryData):
-                return (
-                    f'Все первичные данные заполнены',
-                    button_generator(['/help'],without_cancel=True),
-                    States.clear
-                )
-            else:
+            if data_from_second_db is None:
+                instance.survey_stage = 7
                 instance.count = 0
                 for recipe in data.recipes.values():
                     for ingredient in recipe.keys():
-                        if ingredient not in instance.ingredients:
-                            instance.ingredients.append(ingredient)
+                        if ingredient not in instance.data_list:
+                            instance.data_list.append(ingredient)
+                if data.positions_products:
+                    instance.data_list.extend(data.positions_products)
+                    message_answer = stage_7.ASK_QUANTITY.format(
+                        position=instance.data_list[instance.count]
+                    )
+                    buttons = ReplyKeyboardRemove()
+                    next_state = CurrentActualBalance.waiting_for_quantity
+            else:
+                message_answer = f"Все первичные данные заполнены"
+                buttons = button_generator(["/input_daily_data"], without_cancel=True)
+                next_state = States.clear
+
+    return (message_answer, buttons, next_state)
+
+
+def check_correctness_data(user_answer: str, instance):
+    stage = instance.survey_stage
+    const = import_loader.get_constants(stage)
+    try:
+        const_plus_one = import_loader.get_constants(stage + 1)
+    except ModuleNotFoundError:
+        const_plus_one = const
+
+    if user_answer == "да":
+        if stage == 1:
+            instance.data_list = instance.current_data_list
+            instance.data_list_copy = instance.data_list.copy()
+            instance.current_data_list = []
+            instance.current_data = instance.current_data_list
+
+            instance.survey_stage = 2
+
+            message_answer = const_plus_one.ASK_LIST
+            buttons = button_generator(
+                instance.data_list, ["готово"], without_cancel=True
+            )
+            next_state = FillingStates.waiting_for_products_list
+        elif stage == 2:
+            instance.positions_products = instance.current_data_list.copy()
+            instance.current_data_list = []
+            instance.data_list_copy = instance.current_data_list.copy()
+            instance.current_data = instance.data_dict
+
+            instance.survey_stage = 3
+
+            message_answer = const_plus_one.ASK_LIST.format(
+                position=instance.data_list[0]
+            )
+            buttons = ReplyKeyboardRemove()
+            next_state = FillingStates.waiting_for_data_for_composition
+
+        elif stage == 3:
+            instance.current_position_for_change = list(instance.data_dict.keys())[0]
+            instance.current_data_list = instance.data_dict[
+                instance.current_position_for_change
+            ]
+            instance.current_data = instance.recipes
+            instance.count = 0
+
+            instance.survey_stage = 4
+
+            message_answer = const_plus_one.ASK_QUANTITY.format(
+                position=instance.current_position_for_change,
+                product=instance.current_data_list[instance.count],
+            )
+            buttons = ReplyKeyboardRemove()
+            next_state = FillingStates.waiting_quantity
+
+        elif stage == 4:
+            instance.data_dict = instance.data_dict_copy.copy()
+            instance.data_list = instance.data_list_copy.copy()
+            instance.count = 0
+            instance.current_data = instance.recipes
+
+            message_answer = general.FILLED_RECIPES_DATA + general.CONFIRM_SAVING
+            buttons = buttons_yes_or_not()
+            next_state = States.waiting_save_confirmation
+        elif stage == 5:
+            instance.positions_products = instance.current_data_list.copy()
+            for deliverer in instance.positions_products:
+                instance.data_dict.setdefault(deliverer, [])
+
+            instance.survey_stage = 6
+            instance.count = 0
+            instance.current_data = instance.data_dict
+            instance.current_position_for_change = instance.data_list[instance.count]
+            instance.current_data_list = []
+
+            message_answer = const_plus_one.ASK_LIST.format(
+                position=instance.current_position_for_change
+            )
+            buttons = button_generator(
+                list(instance.data_dict.keys()), without_cancel=True
+            )
+            next_state = FillingStates.waiting_for_delivery_data_composition
+        elif stage == 6:
+            message_answer = general.FILLED_DELIVERY_DATA + general.CONFIRM_SAVING
+            buttons = buttons_yes_or_not()
+            next_state = States.waiting_save_confirmation
+
+        elif stage == 7:
+            message_answer = general.FILLED_BALANCE_DATA + general.CONFIRM_SAVING
+            buttons = buttons_yes_or_not()
+            next_state = States.waiting_save_confirmation
+        elif stage == 8:
+            instance.dict_in_dict["проданная продукция"] = instance.data_dict
+            instance.current_data_list = []
+            instance.current_data = instance.current_data_list
+            instance.data_list = list(instance.deliveries.keys())
+            instance.data_list_copy = instance.data_list.copy()
+
+            instance.survey_stage = 9
+
+            message_answer = const_plus_one.ASK_LIST
+            buttons = button_generator(
+                instance.data_list, ["готово"], without_cancel=True
+            )
+            next_state = Main.waiting_for_deliveries_names
+
+        elif stage == 9:
+            if instance.current_data_list == []:
+                instance.dict_in_dict["поставки"] = {}
+                instance.survey_stage = 11
+                instance.data_list = instance.positions.copy()
+                instance.data_list_copy = instance.data_list.copy()
+                instance.current_data_list = []
+                instance.current_data = instance.current_data_list
+
                 return (
-                    constants.ASK_QUANTITY_BALANCE.format(position=instance.ingredients[instance.count]),
-                    ReplyKeyboardRemove(),
-                    CurrentActualBalance.waiting_for_quantity
+                    stage_11.ASK_LIST,
+                    button_generator(
+                        instance.data_list, ["готово"], without_cancel=True
+                    ),
+                    FillingStates.waiting_for_products_list,
                 )
 
+            else:
+                instance.survey_stage = 10
 
-def give_response_text_for_check_correctness_data(user_answer: str, instance):
-    '''
-    В зависимости от текущего этапа заполнения данных
-    выводит нужный текст для вопроса пользователю
-    для проверки корректности данных
-    :param survey_stage: текущий этап
-    :return: (
-    строка для вопроса пользователю,
-    настройки для кнопок,
-    следующее состояние для FSMContext
-    )
-    '''
+                instance.count = 0
+                instance.data_dict = {}
+                instance.data_list = instance.current_data_list.copy()
+                instance.data_dict = {}
+                for deliverier, positions in instance.deliveries.items():
+                    if deliverier in instance.current_data_list:
+                        instance.data_dict.setdefault(deliverier, positions)
 
-    if user_answer == "да" and instance.survey_stage == 1:
-        if instance.data_filling_stage == 2:
+                instance.current_position_for_change = list(instance.data_dict.keys())[
+                    instance.count
+                ]
+                instance.current_data_list = instance.data_dict[
+                    instance.current_position_for_change
+                ]
+                instance.data_list = list(instance.data_dict.keys())
+                instance.current_data = instance.recipes
+
+                message_answer = const_plus_one.ASK_QUANTITY.format(
+                    position=instance.current_data_list[instance.count]
+                )
+                buttons = ReplyKeyboardRemove()
+                next_state = FillingStates.waiting_quantity
+        elif stage == 10:
+            instance.dict_in_dict.setdefault("поставки", {})
+            for positions_and_quantity in instance.recipes.values():
+                for position, quantity in positions_and_quantity.items():
+                    instance.dict_in_dict["поставки"][position] = quantity
+
+            instance.data_list = instance.positions.copy()
+            instance.data_list_copy = instance.data_list.copy()
+            instance.current_data_list = []
+            instance.current_data = instance.current_data_list
+
+            instance.survey_stage = 11
+
+            message_answer = const_plus_one.ASK_LIST
+            buttons = button_generator(
+                instance.data_list, ["готово"], without_cancel=True
+            )
+            next_state = FillingStates.waiting_for_products_list
+        elif stage == 11:
+            if instance.current_data_list == []:
+                instance.survey_stage = 13
+                instance.dict_in_dict["перемещения с других точек"] = {}
+
+                instance.data_list = instance.positions.copy()
+                instance.data_list_copy = instance.data_list.copy()
+                instance.current_data_list = []
+                instance.current_data = instance.current_data_list
+
+                return (
+                    stage_13.ASK_LIST,
+                    button_generator(
+                        instance.data_list, ["готово"], without_cancel=True
+                    ),
+                    FillingStates.waiting_for_products_list,
+                )
+
+            instance.data_dict = {}
             instance.count = 0
-            return (
-                constants.ASK_COMPOSITION_DELIVERY.format(position=instance.full_ingredients_list[instance.count]),
-                button_generator(instance.ingredients, without_cancel=True),
-                FillingStates.waiting_for_delivery_data_composition
+            instance.data_list = instance.current_data_list.copy()
+
+            instance.current_position_for_change = instance.data_list[0]
+            instance.current_data = instance.data_dict
+
+            instance.survey_stage = 12
+
+            message_answer = const_plus_one.ASK_QUANTITY.format(
+                position=instance.data_list[0]
             )
-        else:
-            return (
-                constants.ASK_LIST_POSITIONS.format(ingredient=instance.ingredients[0]),
-                ReplyKeyboardRemove(),
-                FillingStates.waiting_for_data_for_composition
+            buttons = ReplyKeyboardRemove()
+            next_state = Main.waiting_for_quantity_sold
+        elif stage == 12:
+            instance.dict_in_dict["перемещения с других точек"] = instance.data_dict
+
+            instance.data_list = instance.positions.copy()
+            instance.data_list_copy = instance.data_list.copy()
+            instance.current_data_list = []
+            instance.current_data = instance.current_data_list
+
+            instance.survey_stage = 13
+
+            message_answer = const_plus_one.ASK_LIST
+            buttons = button_generator(
+                instance.data_list, ["готово"], without_cancel=True
             )
-    elif user_answer == "нет" and instance.survey_stage == 1:
-        if instance.data_filling_stage == 1:
-            choose_list = constants.CHOOSING_ACTION
-        else:
-            choose_list = constants.CHOOSING_ACTION_DELIVERY
-        return (
-            constants.CHOOSE_POSITION_FOR_CHANGE.format(sep=constants.SEPARATOR, choose_list=choose_list),
-            buttons_choose_action(instance.data_filling_stage),
-            ChangingData.waiting_result_choosing_action
+            next_state = FillingStates.waiting_for_products_list
+        elif stage == 13:
+            if instance.current_data_list == []:
+                instance.survey_stage = 15
+                instance.dict_in_dict["перемещения на другие точки"] = {}
+
+                instance.positions_products = sorted(
+                    list(set(instance.positions + instance.products))
+                )
+                instance.data_list = instance.positions_products.copy()
+
+                return (
+                    stage_15.ASK_LIST,
+                    button_generator(
+                        instance.data_list, ["готово"], without_cancel=True
+                    ),
+                    FillingStates.waiting_for_products_list,
+                )
+            instance.data_dict = {}
+            instance.count = 0
+
+            instance.data_list = instance.current_data_list.copy()
+
+            instance.current_position_for_change = instance.data_list[0]
+            instance.current_data = instance.data_dict
+
+            instance.survey_stage = 14
+            message_answer = stage_14.ASK_QUANTITY.format(
+                position=instance.data_list[0]
             )
+            buttons = ReplyKeyboardRemove()
+            next_state = Main.waiting_for_quantity_sold
+        elif stage == 14:
+            instance.dict_in_dict["перемещения на другие точки"] = instance.data_dict
 
-
-    elif user_answer == "да" and instance.survey_stage == 2:
-        if instance.data_filling_stage == 2:
-            return (
-                constants.CONFIRM_SAVING,
-                buttons_yes_or_not(),
-                States.waiting_save_confirmation
+            instance.positions_products = sorted(
+                list(set(instance.positions + instance.products))
             )
+            instance.data_list = instance.positions_products.copy()
+            instance.data_list_copy = instance.data_list.copy()
+            instance.current_data_list = []
+            instance.current_data = instance.current_data_list
 
-        recipes = transformers.nest_dict(instance.compositions) #{'позиция':['товар', 'второй товар']} -> {'товар':{'позиция': 0}...}
-        instance.recipes = recipes
+            instance.survey_stage = 15
 
-        first_product = list(recipes.keys())[0]
-        first_ingredient = list(recipes[first_product].keys())[0]
-        instance.cpl = list(instance.recipes.keys())
-        instance.idx_prd = 0
-        instance.cil = list(instance.recipes[instance.cpl[0]].keys())
-        instance.idx_ing = 0
-        instance.count = 0
-
-        return (
-            constants.ASK_QUANTITY.format(ingr=first_ingredient, product=first_product),
-            ReplyKeyboardRemove(),
-            FillingStates.waiting_quantity
-        )
-    elif user_answer == "нет" and instance.survey_stage == 2:
-        if instance.data_filling_stage == 1:
-            return (
-                constants.ASK_POSITION_FOR_CHANGE,
-                button_generator(instance.ingredients_without_products),
-                ChangingData.waiting_ingredient_name
+            message_answer = const_plus_one.ASK_LIST
+            buttons = button_generator(
+                instance.data_list, ["готово"], without_cancel=True
             )
-        else:
-            return (
-                constants.ASK_FILLING_DATA_AGAIN,
-                buttons_yes_or_not(),
-                FillingStates.waiting_for_filling_data_confirmation
+            next_state = FillingStates.waiting_for_products_list
+        elif stage == 15:
+            if instance.current_data_list == []:
+
+                instance.survey_stage = 17
+                instance.dict_in_dict["списания"] = {}
+                instance.current_data = instance.dict_in_dict
+
+                return (
+                 general.CONFIRM_SAVING,
+                 buttons_yes_or_not(),
+                 States.waiting_save_confirmation)
+
+            instance.data_dict = {}
+            instance.count = 0
+
+            instance.data_list = instance.current_data_list.copy()
+
+            instance.current_position_for_change = instance.data_list[0]
+            instance.current_data = instance.data_dict
+
+            instance.survey_stage = 16
+
+            message_answer = stage_16.ASK_QUANTITY.format(
+                position=instance.data_list[0]
             )
+            buttons = ReplyKeyboardRemove()
+            next_state = Main.waiting_for_quantity_sold
+        elif stage == 16:
+            instance.survey_stage = 17
+            instance.current_data = instance.dict_in_dict
 
+            instance.dict_in_dict['списания'] = instance.data_dict
+            message_answer = general.CONFIRM_SAVING
+            buttons = buttons_yes_or_not()
+            next_state = States.waiting_save_confirmation
 
-    elif user_answer == "да" and instance.survey_stage == 3:
-        return (
-            constants.CONFIRM_SAVING,
-            buttons_yes_or_not(),
-            States.waiting_save_confirmation
-        )
-    elif user_answer == 'нет' and instance.survey_stage == 3:
-        if instance.data_filling_stage < 3:
-            recipes = instance.recipes
-            positions_list = list(recipes.keys())
-            instance.cpl = positions_list
-            question = constants.ASK_PRODUCT_FOR_CHANGE
-            next_state = ChangingData.waiting_position_name_for_change
-        else:
-            instance.survey_stage = 1
-            question = constants.ASK_POSITION_FOR_CHANGE
-            positions_list = instance.ingredients
-            next_state = ChangingData.waiting_element_for_change
+    elif user_answer == "нет":
+        if stage in (1, 2, 5, 6, 9, 11, 13, 15):
+            message_answer = const.ASK_CHOOSING_ACTION + const.CHOOSING_ACTION
+            buttons = button_generator(const.CHOOSING_ACTION_LIST)
+            next_state = ChangingData.waiting_result_choosing_action
+        elif stage in (3, 4, 10):
+            message_answer = const.ASK_KEY_FOR_CHANGE
+            next_state = ChangingData.waiting_ingredient_name
+            if stage == 3:
+                instance.current_data_list = []
+                buttons = button_generator(list(instance.data_dict.keys()))
+            elif stage == 4 or stage == 10:
+                instance.current_data_list = []
+                instance.data_list_copy = instance.data_list.copy()
+                instance.data_dict_copy = instance.data_dict.copy()
 
-        return (
-            question,
-            button_generator(positions_list),
-            next_state
-        )
-
+                buttons = button_generator(list(instance.recipes.keys()))
+        elif stage in (7, 8, 12, 14, 16):
+            instance.current_data_list = instance.data_list.copy()
+            message_answer = const.ASK_CHOOSING_ACTION + const.CHOOSING_ACTION
+            buttons = button_generator(const.CHOOSING_ACTION_LIST)
+            next_state = ChangingData.waiting_result_choosing_action
 
     else:
-        return (
-            constants.INPUT_YES_NO,
-            buttons_yes_or_not(),
-            FillingStates.waiting_for_data_confirmation
-        )
+        message_answer = general.INPUT_YES_NO
+        buttons = buttons_yes_or_not()
+        next_state = None
+
+    return (message_answer, buttons, next_state)
+
 
 def choose_action(user_answer, instance):
+    user_answer = user_answer.capitalize()
+    stage = instance.survey_stage
+    const = import_loader.get_constants(stage)
+    actions = const.CHOOSING_ACTION_LIST
 
-    if instance.data_filling_stage == 1:
-        item = 'позицию'
-    else:
-        item = 'поставщика'
+    if user_answer == "Отменить":
+        message_answer = renderers.render_list_or_dict(
+            instance.current_data, stage, instance.positions_products
+        )
+        buttons = buttons_yes_or_not()
+        next_state = FillingStates.waiting_for_data_confirmation
+    elif user_answer not in actions:
+        message_answer = (
+            general.INCORRECT_INPUT + const.ASK_CHOOSING_ACTION + const.CHOOSING_ACTION
+        )
+        buttons = button_generator(const.CHOOSING_ACTION_LIST)
+        next_state = None
 
-    s_s = instance.survey_stage
-    actions = [f"поменять {item}", f"удалить {item}", f"добавить {item}", "начать заполнение заново", "отменить"]
+    elif user_answer == actions[0]:  # изменить
+                                     # начать заполнение заново для stage_6
+        if stage == 6:
+            instance.data_dict = {}
+            for deliverer in instance.positions_products:
+                instance.data_dict.setdefault(deliverer, [])
 
-    if instance.data_filling_stage == 1:
-        change = constants.ASK_POSITION_FOR_CHANGE
-        delete = constants.ASK_POSITION_FOR_DELETE
-        add = constants.ASK_LIST_INGREDIENTS
-    else:
-        change = constants.ASK_DELIVERIER_FOR_CHANGE
-        delete =constants.ASK_DELIVERIER_FOR_DELETE
-        add = constants.ASK_DELIVERIES_LIST
+            instance.count = 0
+            instance.current_data = instance.data_dict
+            instance.current_position_for_change = instance.data_list[instance.count]
+            instance.current_data_list = []
 
-    if user_answer == actions[0] and s_s == 1:
-        return (
-            change,
-            button_generator(instance.ingredients),
-            ChangingData.waiting_element_for_change
-        )
-    elif user_answer == actions[1] and s_s == 1:
-        return (
-            delete,
-            button_generator(instance.ingredients),
-            ChangingData.delete
-        )
-    elif user_answer == actions[2] and s_s == 1:
-        return (
-            add,
-            ReplyKeyboardRemove(),
-            ChangingData.add
-        )
-    elif user_answer == actions[3] and s_s == 1:
-        return (
-            add,
-            ReplyKeyboardRemove(),
-            FillingStates.waiting_for_data_list
-        )
-    elif user_answer == actions[4] and s_s == 1:
-        return (
-            renderers.render_list(instance.ingredients, instance.data_filling_stage),
-            buttons_yes_or_not(),
-            FillingStates.waiting_for_data_confirmation
-        )
-    elif user_answer == actions[0] and s_s == 2:
-        return (
-            constants.ASK_PRODUCT_FOR_CHANGE,
-            button_generator(instance.compositions[instance.cifc]),
-            ChangingData.waiting_element_for_change
-        )
-    elif user_answer == actions[1] and s_s == 2:
-        return (
-            constants.ASK_PRODUCT_FOR_DELETE,
-            button_generator(instance.compositions[instance.cifc]),
-            ChangingData.delete
-        )
-    elif user_answer == actions[2] and s_s == 2:
-        return (
-            constants.ASK_LIST_POSITIONS_WITHOUT_PRD_IS_ING.format(
-                ingredient=instance.cifc
-            ),
-            ReplyKeyboardRemove(),
-            ChangingData.add
-        )
-    elif user_answer == actions[3] and s_s == 2:
-        instance.compositions[instance.cifc] = []
-        return (
-            constants.ASK_LIST_POSITIONS.format(ingredient=instance.cifc),
-            ReplyKeyboardRemove(),
-            ChangingData.add
-        )
-    elif user_answer == actions[4] and s_s == 2:
-        return (
-            renderers.render_dict(instance.compositions, instance.product_is_ingredient),
-            buttons_yes_or_not(),
-            FillingStates.waiting_for_data_confirmation
-        )
-    else:
-        return (
-            f'{constants.INCORRECT_INPUT}\n{constants.CHOOSING_ACTION}',
-            buttons_choose_action(),
-            None
-        )
+            message_answer = const.ASK_LIST.format(
+                position=instance.current_position_for_change
+            )
+            buttons = button_generator(
+                list(instance.data_dict.keys()), without_cancel=True
+            )
+            next_state = FillingStates.waiting_for_delivery_data_composition
+        elif instance.current_data_list == []:
+            message_answer = const.EMPTY + renderers.render_list_or_dict(
+                instance.current_data, stage, instance.positions_products
+            )
+            buttons = buttons_yes_or_not()
+            next_state = FillingStates.waiting_for_data_confirmation
+        else:
+            message_answer = const.ASK_NAME_FOR_CHANGE
+            buttons = button_generator(instance.current_data_list)
+            next_state = ChangingData.waiting_element_for_change
 
-def get_confirm(user_answer, instance):
-    if user_answer == 'нет':
-        return (
-            constants.CHECKING_CORRECT_DATA.format(sep=constants.SEPARATOR,
-                                                   checking_data=renderers.render_dict(instance.compositions)),
-            buttons_yes_or_not(),
-            FillingStates.waiting_for_data_confirmation
-        )
-    elif user_answer == 'да':
-        instance.count = 0
-        return (
-            constants.ASK_COMPOSITION_DELIVERY.format(position=instance.full_ingredients_list[instance.count]),
-            button_generator(instance.ingredients, without_cancel=True),
-            FillingStates.waiting_for_delivery_data_composition
-        )
-    else:
-        return (
-            constants.INPUT_YES_NO,
-            buttons_yes_or_not(),
-            None
-        )
+    elif user_answer == actions[1]:  # Удалить
+        # для stage_4/stage_7/stage_8/stage_10/stage_12/stage_14 - Начать заполнение заново
+        if stage in (1, 2, 3, 5, 6, 9, 11, 13, 15):
+            if instance.current_data_list == []:
+                message_answer = const.EMPTY + renderers.render_list_or_dict(
+                    instance.current_data, stage, instance.positions_products
+                )
+                buttons = buttons_yes_or_not()
+                next_state = FillingStates.waiting_for_data_confirmation
+            else:
+                message_answer = const.ASK_NAME_FOR_DELETE
+                buttons = button_generator(instance.current_data_list)
+                next_state = ChangingData.delete
+        elif stage == 4:
+            current_product = list(instance.recipes.keys())[instance.count]
+            positions_list = instance.current_data_list
+            instance.data_dict = {}
+            instance.data_list = instance.current_data_list.copy()
+            for ingredient in positions_list:
+                instance.data_dict.setdefault(ingredient, [])
+                instance.data_dict[ingredient].append(current_product)
+
+            instance.current_position_for_change = list(instance.data_dict.keys())[0]
+            instance.current_data_list = instance.data_dict[
+                instance.current_position_for_change
+            ]
+            instance.count = 0
+            return (
+                constants.stage_4.ASK_QUANTITY.format(
+                    position=instance.current_position_for_change,
+                    product=instance.current_data_list[instance.count],
+                ),
+                ReplyKeyboardRemove(),
+                FillingStates.waiting_quantity,
+            )
+        elif stage == 7:
+            instance.count = 0
+            instance.data_dict = {}
+            return (
+                constants.stage_7.ASK_QUANTITY.format(
+                    position=instance.data_list[instance.count]
+                ),
+                ReplyKeyboardRemove(),
+                CurrentActualBalance.waiting_for_quantity,
+            )
+        elif stage == 8:
+            instance.count = 0
+            instance.data_dict = {}
+            return (
+                const.ASK_QUANTITY.format(position=instance.data_list[0]),
+                ReplyKeyboardRemove(),
+                Main.waiting_for_quantity_sold,
+            )
+
+        elif stage == 10:
+            current_delivery = list(instance.current_data.keys())[instance.count]
+            instance.data_dict = {}
+            instance.data_list = []
+            instance.data_list.append(current_delivery)
+            instance.data_dict[current_delivery] = instance.current_data_list
+            instance.count = 0
+
+            instance.current_position_for_change = list(instance.data_dict.keys())[
+                instance.count
+            ]
+            instance.current_data_list = instance.data_dict[
+                instance.current_position_for_change
+            ]
+
+            message_answer = constants.stage_10.ASK_QUANTITY.format(
+                position=instance.current_data_list[instance.count]
+            )
+            buttons = ReplyKeyboardRemove()
+            next_state = FillingStates.waiting_quantity
+
+        elif stage in (12, 14, 16):
+            instance.data_dict = {}
+            instance.count = 0
+            instance.data_list = instance.current_data_list.copy()
+
+            instance.current_position_for_change = instance.data_list[0]
+            instance.current_data = instance.data_dict
+
+            message_answer = const.ASK_QUANTITY.format(position=instance.data_list[0])
+            buttons = ReplyKeyboardRemove()
+            next_state = Main.waiting_for_quantity_sold
+
+    elif user_answer == actions[2]:  # Добавить
+        if stage in (1, 2, 5):
+            message_answer = const.ASK_LIST
+        elif stage == 3:
+            message_answer = const.ASK_LIST.format(
+                position=list(instance.data_dict.keys())[instance.count]
+            )
+        elif stage in (9, 11, 13, 15):
+            message_answer = const.ASK_LIST_OTHER
+
+        if stage in (1, 3, 5):
+            buttons = ReplyKeyboardRemove()
+            next_state = ChangingData.add
+        elif stage in (11, 13, 15):
+            buttons = button_generator(
+                instance.data_list, ["готово"], without_cancel=True
+            )
+            next_state = FillingStates.waiting_for_products_list
+        else:
+            buttons = button_generator(
+                instance.data_list, ["готово"], without_cancel=True
+            )
+            next_state = FillingStates.waiting_for_products_list
+
+    elif user_answer == actions[3]:  # Начать заполнение заново
+        instance.current_data_list = []
+
+        if stage in (1, 2, 5, 9, 11, 13, 15):
+            message_answer = const.ASK_LIST
+        elif stage == 3:
+            message_answer = const.ASK_LIST.format(
+                position=list(instance.data_dict.keys())[instance.count]
+            )
+
+        if stage in (1, 3, 5):
+            buttons = ReplyKeyboardRemove()
+            next_state = FillingStates.waiting_for_data_list
+        elif stage in (2, 9, 11, 13, 15):
+            if stage in (9, 11, 13, 15):
+                instance.current_data = instance.current_data_list
+                if stage == 15:
+                    instance.positions_products = sorted(
+                        list(set(instance.positions + instance.products))
+                    )
+                    instance.data_list = instance.positions_products.copy()
+                    instance.data_list_copy = instance.data_list.copy()
+            instance.data_list = instance.data_list_copy.copy()
+            next_state = FillingStates.waiting_for_products_list
+            buttons = button_generator(
+                instance.data_list, ["готово"], without_cancel=True
+            )
+
+    return (message_answer, buttons, next_state)

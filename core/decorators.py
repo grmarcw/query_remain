@@ -9,7 +9,7 @@ def with_data(handler):
     @wraps(handler)
     async def wrapper(message: Message, state: FSMContext):
         data = await state.get_data()
-        instance = data.get('instance')
+        instance = data.get("instance")
 
         result = await handler(message, state, instance)
 
