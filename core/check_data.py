@@ -10,7 +10,7 @@ from bot.states_fsm import (
     Main,
 )
 import constants
-from constants import general, stage_11, stage_14, stage_13, stage_15, stage_16, stage_7
+from constants import general, stage_11, stage_14, stage_13, stage_15, stage_16, stage_7, stage_6
 from core import renderers, import_loader
 from database import queries
 from database.models import SecondaryData
@@ -93,7 +93,7 @@ def check_correctness_data(user_answer: str, instance):
             instance.survey_stage = 3
 
             message_answer = const_plus_one.ASK_LIST.format(
-                ingredient=instance.data_list[0]
+                position=instance.data_list[0]
             )
             buttons = ReplyKeyboardRemove()
             next_state = FillingStates.waiting_for_data_for_composition
@@ -125,12 +125,13 @@ def check_correctness_data(user_answer: str, instance):
             buttons = buttons_yes_or_not()
             next_state = States.waiting_save_confirmation
         elif stage == 5:
-            for deliverier in instance.current_data_list:
-                instance.data_dict.setdefault(deliverier, [])
+            instance.positions_products = instance.current_data_list.copy()
+            for deliverer in instance.positions_products:
+                instance.data_dict.setdefault(deliverer, [])
 
             instance.survey_stage = 6
             instance.count = 0
-            instance.current_data = instance.recipes
+            instance.current_data = instance.data_dict
             instance.current_position_for_change = instance.data_list[instance.count]
             instance.current_data_list = []
 
@@ -142,28 +143,9 @@ def check_correctness_data(user_answer: str, instance):
             )
             next_state = FillingStates.waiting_for_delivery_data_composition
         elif stage == 6:
-            if instance.count == 67:  # если пользователь хочет заполнить данные заново
-                instance.data_dict = {}
-                for deliverier in instance.current_data_list:
-                    instance.data_dict.setdefault(deliverier, [])
-
-                instance.count = 0
-                instance.current_data = instance.data_dict
-                instance.current_position_for_change = instance.data_list[
-                    instance.count
-                ]
-
-                message_answer = const_plus_one.ASK_LIST.format(
-                    position=instance.current_position_for_change
-                )
-                buttons = button_generator(
-                    list(instance.data_dict.keys()), without_cancel=True
-                )
-                next_state = FillingStates.waiting_for_delivery_data_composition
-            else:
-                message_answer = general.FILLED_DELIVERY_DATA + general.CONFIRM_SAVING
-                buttons = buttons_yes_or_not()
-                next_state = States.waiting_save_confirmation
+            message_answer = general.FILLED_DELIVERY_DATA + general.CONFIRM_SAVING
+            buttons = buttons_yes_or_not()
+            next_state = States.waiting_save_confirmation
 
         elif stage == 7:
             message_answer = general.FILLED_BALANCE_DATA + general.CONFIRM_SAVING
@@ -377,7 +359,7 @@ def check_correctness_data(user_answer: str, instance):
             next_state = States.waiting_save_confirmation
 
     elif user_answer == "нет":
-        if stage in (1, 2, 5, 9, 11, 13, 15):
+        if stage in (1, 2, 5, 6, 9, 11, 13, 15):
             message_answer = const.ASK_CHOOSING_ACTION + const.CHOOSING_ACTION
             buttons = button_generator(const.CHOOSING_ACTION_LIST)
             next_state = ChangingData.waiting_result_choosing_action
@@ -393,19 +375,6 @@ def check_correctness_data(user_answer: str, instance):
                 instance.data_dict_copy = instance.data_dict.copy()
 
                 buttons = button_generator(list(instance.recipes.keys()))
-        elif stage == 6:
-            if instance.count != 67:  # Если запущена проверка корректности данных
-                message_answer = const.ASK_KEY_FOR_CHANGE
-                buttons = buttons_yes_or_not()
-                next_state = None
-                instance.count = 67
-            else:  # если задан вопрос о повторном заполнении данных
-                message_answer = renderers.render_list_or_dict(
-                    instance.current_data, stage
-                )
-                buttons = buttons_yes_or_not()
-                next_state = None
-                instance.count = 0
         elif stage in (7, 8, 12, 14, 16):
             instance.current_data_list = instance.data_list.copy()
             message_answer = const.ASK_CHOOSING_ACTION + const.CHOOSING_ACTION
@@ -440,7 +409,25 @@ def choose_action(user_answer, instance):
         next_state = None
 
     elif user_answer == actions[0]:  # изменить
-        if instance.current_data_list == []:
+                                     # начать заполнение заново для stage_6
+        if stage == 6:
+            instance.data_dict = {}
+            for deliverer in instance.positions_products:
+                instance.data_dict.setdefault(deliverer, [])
+
+            instance.count = 0
+            instance.current_data = instance.data_dict
+            instance.current_position_for_change = instance.data_list[instance.count]
+            instance.current_data_list = []
+
+            message_answer = const.ASK_LIST.format(
+                position=instance.current_position_for_change
+            )
+            buttons = button_generator(
+                list(instance.data_dict.keys()), without_cancel=True
+            )
+            next_state = FillingStates.waiting_for_delivery_data_composition
+        elif instance.current_data_list == []:
             message_answer = const.EMPTY + renderers.render_list_or_dict(
                 instance.current_data, stage, instance.positions_products
             )
@@ -543,7 +530,7 @@ def choose_action(user_answer, instance):
             message_answer = const.ASK_LIST
         elif stage == 3:
             message_answer = const.ASK_LIST.format(
-                ingredient=list(instance.data_dict.keys())[instance.count]
+                position=list(instance.data_dict.keys())[instance.count]
             )
         elif stage in (9, 11, 13, 15):
             message_answer = const.ASK_LIST_OTHER
@@ -569,7 +556,7 @@ def choose_action(user_answer, instance):
             message_answer = const.ASK_LIST
         elif stage == 3:
             message_answer = const.ASK_LIST.format(
-                ingredient=list(instance.data_dict.keys())[instance.count]
+                position=list(instance.data_dict.keys())[instance.count]
             )
 
         if stage in (1, 3, 5):

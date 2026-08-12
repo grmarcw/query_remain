@@ -61,6 +61,7 @@ async def handle_show_or_delete_request(user_answer, instance):
                         data_balance.initial_balance, 7, option=2
                     )
                 )
+                output.append(general.SEPARATOR)
                 if data_balance.data:
                     output.append("Данные по датам\n")
                     output.append(

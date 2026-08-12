@@ -79,7 +79,7 @@ def get_composition(product_string, instance):
 
     if instance.count < len(instance.data_list):
         message_answer = const.ASK_LIST.format(
-            ingredient=instance.data_list[instance.count]
+            position=instance.data_list[instance.count]
         )
         buttons = ReplyKeyboardRemove()
         next_state = None
@@ -151,7 +151,7 @@ def get_quantity(quantity, instance):
             ]
 
             if stage == 4:
-                output = general.INCORRECT_INPUT + const.ASK_QUANTITY.format(
+                output = const.ASK_QUANTITY.format(
                     position=instance.current_position_for_change,
                     product=instance.current_data_list[instance.count],
                 )
@@ -207,7 +207,7 @@ async def saving(user_answer, instance):
         message_answer = (
             renderers.render_list_or_dict(
                 instance.current_data, stage, instance.positions_products
-            ),
+            )
         )
         buttons = buttons_yes_or_not()
         next_state = FillingStates.waiting_for_data_confirmation
@@ -215,18 +215,18 @@ async def saving(user_answer, instance):
     return (message_answer, buttons, next_state)
 
 
-async def get_delivery_composition(deliverier, instance):
+async def get_delivery_composition(deliverer, instance):
     stage = instance.survey_stage
     const = import_loader.get_constants(stage)
 
-    if deliverier not in list(instance.data_dict.keys()):
+    if deliverer not in list(instance.data_dict.keys()):
         return (
             f"{general.INCORRECT_INPUT}\n{const.ASK_LIST.format(position=instance.current_position_for_change)}",
             button_generator(list(instance.data_dict.keys()), without_cancel=True),
             None,
         )
 
-    instance.data_dict[deliverier].append(instance.current_position_for_change)
+    instance.data_dict[deliverer].append(instance.current_position_for_change)
 
     instance.count += 1
 
@@ -239,9 +239,9 @@ async def get_delivery_composition(deliverier, instance):
         )
     else:
         deliveries_for_delete = []
-        for deliverier, positions in instance.data_dict.items():
+        for deliverer, positions in instance.data_dict.items():
             if positions == []:
-                deliveries_for_delete.append(deliverier)
+                deliveries_for_delete.append(deliverer)
         for deliverer in deliveries_for_delete:
             del instance.data_dict[deliverer]
         return (

@@ -23,13 +23,13 @@ def get_element_for_change(element, instance):
 
         message_answer = const.ASK_NEW_NAME
         next_state = ChangingData.change
-        if stage in (1, 3, 5, 7, 8, 10, 12, 14, 16):
+        if stage in (1, 3, 4, 5, 7, 8, 10, 12, 14, 16):
             buttons = ReplyKeyboardRemove()
         else:
             buttons = button_generator(instance.data_list)
 
     else:
-        if stage in (9, 11, 12, 15):
+        if stage in (1, 2, 3, 5, 9, 10, 11, 12, 13, 14, 15):
             buttons = button_generator(instance.current_data_list)
         else:
             buttons = button_generator(instance.data_list)
@@ -84,7 +84,7 @@ def change(new_name, instance):
         next_state = FillingStates.waiting_for_data_confirmation
     else:
         if stage in (1, 2, 3, 5, 6, 9, 11, 13, 15):
-            if stage in (9, 11, 13):
+            if stage in (2, 9, 11, 13, 15):
                 if new_name not in instance.data_list:
                     return (
                         general.INCORRECT_INPUT + const.ASK_NEW_NAME,

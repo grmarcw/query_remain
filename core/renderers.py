@@ -65,12 +65,13 @@ def render_list_or_dict(data, stage=1, list_for_add=None, option=1):
             str_for_output = (
                 "Вы хотите отслеживать следующих поставщиков:\n\n•{list_}\n"
             )
-            str_for_output = str_for_output.format(list_="\n•".join(data))
+
+        str_for_output = str_for_output.format(list_="\n•".join(data))
 
     elif stage == 6:
         list_for_output = []
-        for deliverier, positions in data.items():
-            list_for_output.append(f'{deliverier}:\n   •{"\n   •".join(positions)}')
+        for deliverer, positions in data.items():
+            list_for_output.append(f'{deliverer}:\n   •{"\n   •".join(positions)}')
 
         str_for_output = "\n".join(list_for_output)
 

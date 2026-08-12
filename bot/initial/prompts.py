@@ -83,16 +83,11 @@ async def show_balance(message: Message, state: FSMContext):
     instance.user_id = message.from_user.id
     data_from_initial = await queries.get_user_data(instance.user_id)
     data_from_secondary = await queries.get_user_data(instance.user_id, SecondaryData)
-    format_data_from_db.format(instance, data_from_initial)
-
-    instance.data_dict = data_from_secondary.initial_balance
-    instance.recipes = data_from_initial.recipes
-    daily_data_list = data_from_secondary.data
 
     if data_from_initial is None:
         await message.answer(f'Для вывода фактического остатка необходимо заполнить данные\n/start')
     elif data_from_secondary is None:
-        await message.answer(f'Для вывода фактического осттатка необходимо заполнить данные\n/start')
+        await message.answer(f'Для вывода фактического остатка необходимо заполнить данные\n/start')
     elif data_from_secondary.data is None:
         await message.answer(f"""Фактический остаток:
 {general.SEPARATOR}
@@ -100,6 +95,12 @@ async def show_balance(message: Message, state: FSMContext):
             data_from_secondary.initial_balance, 7, option= 2
         )}""")
     else:
+        format_data_from_db.format(instance, data_from_initial)
+
+        instance.data_dict = data_from_secondary.initial_balance
+        instance.recipes = data_from_initial.recipes
+        daily_data_list = data_from_secondary.data
+
         result = calc_balance.get_actual_balance(daily_data_list, instance)
 
         await (message.answer(f"""Фактический остаток:
