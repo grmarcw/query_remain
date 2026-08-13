@@ -1,8 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
-from session import session_maker
-from models import InitialData, SecondaryData
+from database.session import session_maker
+from database.models import InitialData, SecondaryData
 
 
 async def add_new_user(id: int, recipes: dict):
