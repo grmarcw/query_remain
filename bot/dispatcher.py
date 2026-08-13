@@ -27,12 +27,3 @@ dp.include_router(router_changing)
 dp.include_router(delete_router)
 dp.include_router(clarification_router)
 dp.include_router(add_router)
-
-
-async def main():
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    print("Бот запущен")
-    asyncio.run(main())
