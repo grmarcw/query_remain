@@ -1,7 +1,7 @@
 import asyncio
 
-from database.session import engine
-from database.models import Base
+from session import engine
+from models import Base
 
 
 async def create_tables():
