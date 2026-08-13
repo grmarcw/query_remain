@@ -24,7 +24,7 @@ async def check_data_in_db(instance):
         message_answer = import_loader.get_constants(instance.survey_stage).ASK_LIST
         buttons = ReplyKeyboardRemove()
         next_state = FillingStates.waiting_for_data_list
-    elif data is not None:
+    else:
         if data.deliveries is None:
             instance.survey_stage = 5
             instance.current_data_list = []
@@ -49,11 +49,12 @@ async def check_data_in_db(instance):
                             instance.data_list.append(ingredient)
                 if data.positions_products:
                     instance.data_list.extend(data.positions_products)
-                    message_answer = stage_7.ASK_QUANTITY.format(
-                        position=instance.data_list[instance.count]
-                    )
-                    buttons = ReplyKeyboardRemove()
-                    next_state = CurrentActualBalance.waiting_for_quantity
+
+                message_answer = stage_7.ASK_QUANTITY.format(
+                    position=instance.data_list[instance.count]
+                )
+                buttons = ReplyKeyboardRemove()
+                next_state = CurrentActualBalance.waiting_for_quantity
             else:
                 message_answer = f"Все первичные данные заполнены"
                 buttons = button_generator(["/input_daily_data"], without_cancel=True)
